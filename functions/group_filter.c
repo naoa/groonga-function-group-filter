@@ -110,22 +110,10 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
             grn_obj *expr = NULL;
             grn_obj *expr_record = NULL;
             grn_obj *target_column = NULL;
-            grn_obj *n_subrecs = NULL;
             grn_obj *key = NULL;
-            grn_obj buf, record;
+            grn_obj record;
             int n_values = 0;
-            GRN_UINT32_INIT(&buf, 0);
             GRN_RECORD_INIT(&record, 0, result.table->header.domain);
-
-            n_subrecs = grn_obj_column(ctx, result.table,
-                                       GRN_COLUMN_NAME_NSUBRECS,
-                                       GRN_COLUMN_NAME_NSUBRECS_LEN);
-            if (!n_subrecs) {
-              rc = GRN_NO_MEMORY_AVAILABLE;
-              GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
-                               "group_filter(): couldn't open column");
-              goto exit_select;
-            }
 
             key = grn_obj_column(ctx, result.table,
                                  GRN_COLUMN_NAME_KEY,
@@ -169,8 +157,6 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
               grn_id *group_result_id;
               GRN_ARRAY_EACH(ctx, (grn_array *)sorted, 0, 0, id, &group_result_id, {
                 GRN_BULK_REWIND(&record);
-                GRN_BULK_REWIND(&buf);
-                grn_obj_get_value(ctx, n_subrecs, *group_result_id,  &buf);
                 grn_obj_get_value(ctx, key, *group_result_id, &record);
                 grn_expr_append_const(ctx, expr, &record, GRN_OP_PUSH, 1);
                 n_values++;
@@ -188,13 +174,9 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
             }
 
 exit_select :
-            GRN_OBJ_FIN(ctx, &buf);
             GRN_OBJ_FIN(ctx, &record);
             if (target_column) {
               grn_obj_unlink(ctx, target_column);
-            }
-            if (n_subrecs) {
-              grn_obj_unlink(ctx, n_subrecs);
             }
             if (key) {
               grn_obj_unlink(ctx, key);
