@@ -70,7 +70,6 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     result.max_n_subrecs = 0;
     result.key_begin = 0;
     result.key_end = 0;
-    //result->max_n_records = drilldown->max_n_records;
     result.calc_target = NULL;
 
     keys = grn_table_sort_key_from_str(ctx,
