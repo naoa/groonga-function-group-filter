@@ -106,7 +106,7 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
                          sorted, sort_keys, n_sort_keys);
 
           {
-            grn_obj *in_values_proc = NULL;
+            grn_obj *filter_proc = NULL;
             grn_obj *expr = NULL;
             grn_obj *expr_record = NULL;
             grn_obj *target_column = NULL;
@@ -155,13 +155,16 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
               goto exit_select;
             }
 
-            in_values_proc =
-              grn_ctx_get(ctx, "in_values", strlen("in_values"));
-            if (!in_values_proc) {
-              rc = GRN_NO_MEMORY_AVAILABLE;
-              GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
-                               "group_filter(): couldn't open in_values proc");
-              goto exit_select;
+            filter_proc = grn_ctx_get(ctx, "tag_search", strlen("tag_search"));
+
+            if (!filter_proc) {
+              filter_proc = grn_ctx_get(ctx, "in_values", strlen("in_values"));
+              if (!filter_proc) {
+                rc = GRN_NO_MEMORY_AVAILABLE;
+                GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
+                                 "group_filter(): couldn't open in_values proc");
+                goto exit_select;
+              }
             }
 
             GRN_EXPR_CREATE_FOR_QUERY(ctx, table, expr, expr_record);
@@ -172,7 +175,7 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
               goto exit_select;
             }
 
-            grn_expr_append_obj(ctx, expr, in_values_proc, GRN_OP_PUSH, 1);
+            grn_expr_append_obj(ctx, expr, filter_proc, GRN_OP_PUSH, 1);
             grn_expr_append_obj(ctx, expr, target_column, GRN_OP_PUSH, 1);
 
             {
@@ -319,8 +322,8 @@ exit_select :
             if (expr_record) {
               grn_obj_unlink(ctx, expr_record);
             }
-            if (in_values_proc) {
-              grn_obj_unlink(ctx, in_values_proc);
+            if (filter_proc) {
+              grn_obj_unlink(ctx, filter_proc);
             }
           }
           grn_obj_unlink(ctx, sorted);
