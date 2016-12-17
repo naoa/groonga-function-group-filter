@@ -15,8 +15,8 @@ column_create applicants applicants COLUMN_INDEX docs applicants
 column_create ipcs ipcs COLUMN_INDEX docs ipcs
 select docs \
   --filter '_id >= 1 && group_filter("applicants", 2) && group_filter("ipcs", 2)' \
-  --output_columns _id,_score,_key,applicants,ipcs \
-  --drilldowns[applicants_ipcs].keys applicants,ipcs \
+  --output_columns _id,_score,_key,applicants,#group_applicants,ipcs,#group_ipcs \
+  --drilldowns[applicants_ipcs].keys #group_applicants,#group_ipcs \
   --drilldowns[applicants_ipcs].columns[applicant].stage initial \
   --drilldowns[applicants_ipcs].columns[applicant].type applicants \
   --drilldowns[applicants_ipcs].columns[applicant].flags COLUMN_SCALAR \
@@ -27,18 +27,4 @@ select docs \
   --drilldowns[applicants_ipcs].columns[ipc].value '_key[1]' \
   --drilldowns[applicants_ipcs].output_columns applicant,ipc,_nsubrecs \
   --drilldowns[applicants_ipcs].sort_keys applicant,ipc \
-  --drilldowns[applicants_ipcs].limit -1 \
-  --drilldowns[top_applicants].table applicants_ipcs \
-  --drilldowns[top_applicants].keys applicant \
-  --drilldowns[top_applicants].calc_types SUM \
-  --drilldowns[top_applicants].calc_target _nsubrecs \
-  --drilldowns[top_applicants].output_columns _key,_sum \
-  --drilldowns[top_applicants].sort_keys -_sum \
-  --drilldowns[top_applicants].limit 2 \
-  --drilldowns[top_ipcs].table applicants_ipcs \
-  --drilldowns[top_ipcs].keys ipc \
-  --drilldowns[top_ipcs].calc_types SUM \
-  --drilldowns[top_ipcs].calc_target _nsubrecs \
-  --drilldowns[top_ipcs].output_columns _key,_sum \
-  --drilldowns[top_ipcs].sort_keys -_sum \
-  --drilldowns[top_ipcs].limit 2
+  --drilldowns[applicants_ipcs].limit -1

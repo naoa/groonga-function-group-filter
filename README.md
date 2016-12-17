@@ -12,6 +12,8 @@ columnをグループした結果の上位``top_n``件数のレコードで絞�
 * column_name: グループして絞り込むカラム名。
 * top_n: 絞り込む上位件数 デフォルト10
 
+ベクターカラムが指定された場合、グループ上位の結果のみに書き換えた``#group_{column_name}``という一時カラムが作成されます。
+
 ```bash
 plugin_register functions/group_filter
 [[0,0.0,0.0],true]
@@ -37,9 +39,10 @@ column_create applicants applicants COLUMN_INDEX docs applicants
 [[0,0.0,0.0],true]
 column_create ipcs ipcs COLUMN_INDEX docs ipcs
 [[0,0.0,0.0],true]
-select docs   --filter '_id >= 1 && group_filter("applicants", 2) && group_filter("ipcs", 2)' \
-  --output_columns _id,_score,_key,applicants,ipcs \
-  --drilldowns[applicants_ipcs].keys applicants,ipcs \
+select docs \
+  --filter 'group_filter("applicants", 2) && group_filter("ipcs", 2)' \
+  --output_columns _id,_score,_key,applicants,#group_applicants,ipcs,#group_ipcs \
+  --drilldowns[applicants_ipcs].keys #group_applicants,#group_ipcs \
   --drilldowns[applicants_ipcs].columns[applicant].stage initial \
   --drilldowns[applicants_ipcs].columns[applicant].type applicants \
   --drilldowns[applicants_ipcs].columns[applicant].flags COLUMN_SCALAR \
@@ -50,21 +53,7 @@ select docs   --filter '_id >= 1 && group_filter("applicants", 2) && group_filte
   --drilldowns[applicants_ipcs].columns[ipc].value '_key[1]' \
   --drilldowns[applicants_ipcs].output_columns applicant,ipc,_nsubrecs \
   --drilldowns[applicants_ipcs].sort_keys applicant,ipc \
-  --drilldowns[applicants_ipcs].limit -1 \
-  --drilldowns[top_applicants].table applicants_ipcs \
-  --drilldowns[top_applicants].keys applicant \
-  --drilldowns[top_applicants].calc_types SUM \
-  --drilldowns[top_applicants].calc_target _nsubrecs \
-  --drilldowns[top_applicants].output_columns _key,_sum \
-  --drilldowns[top_applicants].sort_keys -_sum \
-  --drilldowns[top_applicants].limit 2 \
-  --drilldowns[top_ipcs].table applicants_ipcs \
-  --drilldowns[top_ipcs].keys ipc \
-  --drilldowns[top_ipcs].calc_types SUM \
-  --drilldowns[top_ipcs].calc_target _nsubrecs \
-  --drilldowns[top_ipcs].output_columns _key,_sum \
-  --drilldowns[top_ipcs].sort_keys -_sum \
-  --drilldowns[top_ipcs].limit 2
+  --drilldowns[applicants_ipcs].limit -1
 [
   [
     0,
@@ -94,7 +83,15 @@ select docs   --filter '_id >= 1 && group_filter("applicants", 2) && group_filte
           "applicants"
         ],
         [
+          "#group_applicants",
+          "applicants"
+        ],
+        [
           "ipcs",
+          "ShortText"
+        ],
+        [
+          "#group_ipcs",
           "ShortText"
         ]
       ],
@@ -105,6 +102,13 @@ select docs   --filter '_id >= 1 && group_filter("applicants", 2) && group_filte
         [
           "三洋",
           "三洋オプテックデザイン"
+        ],
+        [
+          "三洋"
+        ],
+        [
+          "G06F",
+          "G04A"
         ],
         [
           "G06F",
@@ -119,6 +123,12 @@ select docs   --filter '_id >= 1 && group_filter("applicants", 2) && group_filte
           "パナソニック"
         ],
         [
+          "パナソニック"
+        ],
+        [
+          "G04A"
+        ],
+        [
           "G04A"
         ]
       ],
@@ -131,6 +141,13 @@ select docs   --filter '_id >= 1 && group_filter("applicants", 2) && group_filte
           "三洋"
         ],
         [
+          "パナソニック",
+          "三洋"
+        ],
+        [
+          "G06F"
+        ],
+        [
           "G06F"
         ]
       ]
@@ -138,7 +155,7 @@ select docs   --filter '_id >= 1 && group_filter("applicants", 2) && group_filte
     {
       "applicants_ipcs": [
         [
-          6
+          4
         ],
         [
           [
@@ -165,16 +182,6 @@ select docs   --filter '_id >= 1 && group_filter("applicants", 2) && group_filte
           1
         ],
         [
-          "三洋オプテックデザイン",
-          "G06F",
-          1
-        ],
-        [
-          "三洋オプテックデザイン",
-          "G04A",
-          1
-        ],
-        [
           "パナソニック",
           "G06F",
           1
@@ -183,52 +190,6 @@ select docs   --filter '_id >= 1 && group_filter("applicants", 2) && group_filte
           "パナソニック",
           "G04A",
           1
-        ]
-      ],
-      "top_applicants": [
-        [
-          3
-        ],
-        [
-          [
-            "_key",
-            "ShortText"
-          ],
-          [
-            "_sum",
-            "Int64"
-          ]
-        ],
-        [
-          "三洋",
-          3
-        ],
-        [
-          "パナソニック",
-          2
-        ]
-      ],
-      "top_ipcs": [
-        [
-          2
-        ],
-        [
-          [
-            "_key",
-            "ShortText"
-          ],
-          [
-            "_sum",
-            "Int64"
-          ]
-        ],
-        [
-          "G06F",
-          4
-        ],
-        [
-          "G04A",
-          3
         ]
       ]
     }
