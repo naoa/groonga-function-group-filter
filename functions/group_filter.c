@@ -326,21 +326,12 @@ group_counter_select_with_top_n_group_records(grn_ctx *ctx, group_counter *g,
                                            GRN_COLUMN_NAME_KEY_LEN);
 
     GRN_RECORD_INIT(&record, 0, g->group_result->header.domain);
-    if (grn_obj_is_table(ctx, g->key_type)) {
-      GRN_HASH_EACH_BEGIN(ctx, (grn_hash *)g->top_n_table, cursor, id) {
-        GRN_BULK_REWIND(&record);
-        grn_obj_get_value(ctx, key_accessor, id, &record);
-        grn_expr_append_const(ctx, expr, &record, GRN_OP_PUSH, 1);
-        n_values++;
-      } GRN_HASH_EACH_END(ctx, cursor);
-    } else {
-      GRN_HASH_EACH_BEGIN(ctx, (grn_hash *)g->top_n_table, cursor, id) {
-        GRN_BULK_REWIND(&record);
-        grn_obj_get_value(ctx, key_accessor, id, &record);
-        grn_expr_append_const(ctx, expr, &record, GRN_OP_PUSH, 1);
-        n_values++;
-      } GRN_HASH_EACH_END(ctx, cursor);
-    }
+    GRN_HASH_EACH_BEGIN(ctx, (grn_hash *)g->top_n_table, cursor, id) {
+      GRN_BULK_REWIND(&record);
+      grn_obj_get_value(ctx, key_accessor, id, &record);
+      grn_expr_append_const(ctx, expr, &record, GRN_OP_PUSH, 1);
+      n_values++;
+    } GRN_HASH_EACH_END(ctx, cursor);
 
     grn_expr_append_op(ctx, expr, GRN_OP_CALL, n_values + 1);
 
