@@ -44,9 +44,6 @@ typedef struct {
 
   grn_obj *group_result;
   grn_obj *key_type;
-  grn_obj *id_accessor;
-  grn_obj *key_accessor;
-  grn_obj *nsubrecs_accessor;
 
   grn_obj *count_table;
   grn_obj *sum_column;
@@ -80,18 +77,6 @@ group_counter_fin(grn_ctx *ctx, group_counter *g)
     grn_obj_unlink(ctx, g->top_n_table);
     g->top_n_table = NULL;
   }
-  if (g->nsubrecs_accessor) {
-    grn_obj_unlink(ctx, g->nsubrecs_accessor);
-    g->nsubrecs_accessor = NULL;
-  }
-  if (g->id_accessor) {
-    grn_obj_unlink(ctx, g->id_accessor);
-    g->id_accessor = NULL;
-  }
-  if (g->key_accessor) {
-    grn_obj_unlink(ctx, g->key_accessor);
-    g->key_accessor = NULL;
-  }
   if (g->target_column) {
     grn_obj_unlink(ctx, g->target_column);
     g->target_column = NULL;
@@ -106,9 +91,6 @@ group_counter_init(grn_ctx *ctx, group_counter *g, grn_obj *group_result, grn_ob
 
   g->group_result = group_result;
   g->key_type = grn_ctx_at(ctx, group_result->header.domain);
-  g->id_accessor = NULL;
-  g->key_accessor = NULL;
-  g->nsubrecs_accessor = NULL;
 
   g->table = NULL;
   g->target_column = NULL;
@@ -165,36 +147,6 @@ group_counter_init(grn_ctx *ctx, group_counter *g, grn_obj *group_result, grn_ob
     goto exit;
   }
 
-  g->nsubrecs_accessor = grn_obj_column(ctx, group_result,
-                                        GRN_COLUMN_NAME_NSUBRECS,
-                                        GRN_COLUMN_NAME_NSUBRECS_LEN);
-  if (!g->nsubrecs_accessor) {
-    rc = GRN_NO_MEMORY_AVAILABLE;
-    GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
-                     "group_filter(): couldn't open column");
-    goto exit;
-  }
-
-  g->id_accessor = grn_obj_column(ctx, group_result,
-                                  GRN_COLUMN_NAME_ID,
-                                  GRN_COLUMN_NAME_ID_LEN);
-  if (!g->id_accessor) {
-    rc = GRN_NO_MEMORY_AVAILABLE;
-    GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
-                     "group_filter(): couldn't open column");
-    goto exit;
-  }
-
-  g->key_accessor = grn_obj_column(ctx, group_result,
-                                   GRN_COLUMN_NAME_KEY,
-                                   GRN_COLUMN_NAME_KEY_LEN);
-  if (!g->key_accessor) {
-    rc = GRN_NO_MEMORY_AVAILABLE;
-    GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
-                     "group_filter(): couldn't open column");
-    goto exit;
-  }
-
   g->table = table;
   g->target_column = grn_obj_column(ctx, table,
                                     GRN_TEXT_VALUE(column_name), GRN_TEXT_LEN(column_name));
@@ -223,6 +175,9 @@ group_counter_load(grn_ctx *ctx, group_counter *g, const char *expr_str, unsigne
   grn_obj nsubrecs_buf;
   grn_obj *expression = NULL;
   grn_obj *expr_record = NULL;
+  grn_obj *id_accessor = NULL;
+  grn_obj *key_accessor = NULL;
+  grn_obj *nsubrecs_accessor = NULL;
 
   if (expr_str) {
     GRN_EXPR_CREATE_FOR_QUERY(ctx, g->group_result, expression, expr_record);
@@ -252,6 +207,36 @@ group_counter_load(grn_ctx *ctx, group_counter *g, const char *expr_str, unsigne
     }
   }
 
+  id_accessor = grn_obj_column(ctx, g->group_result,
+                               GRN_COLUMN_NAME_ID,
+                               GRN_COLUMN_NAME_ID_LEN);
+  if (!id_accessor) {
+    rc = GRN_NO_MEMORY_AVAILABLE;
+    GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
+                     "group_filter(): couldn't open column");
+    goto exit;
+  }
+
+  key_accessor = grn_obj_column(ctx, g->group_result,
+                                GRN_COLUMN_NAME_KEY,
+                                GRN_COLUMN_NAME_KEY_LEN);
+  if (!key_accessor) {
+    rc = GRN_NO_MEMORY_AVAILABLE;
+    GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
+                     "group_filter(): couldn't open column");
+    goto exit;
+  }
+
+  nsubrecs_accessor = grn_obj_column(ctx, g->group_result,
+                                     GRN_COLUMN_NAME_NSUBRECS,
+                                     GRN_COLUMN_NAME_NSUBRECS_LEN);
+  if (!nsubrecs_accessor) {
+    rc = GRN_NO_MEMORY_AVAILABLE;
+    GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
+                     "group_filter(): couldn't open column");
+    goto exit;
+  }
+
   GRN_RECORD_INIT(&synonyms, GRN_OBJ_VECTOR, g->group_result->header.domain);
   GRN_RECORD_INIT(&record, 0, g->group_result->header.domain);
   GRN_UINT32_INIT(&nsubrecs_buf, 0);
@@ -267,8 +252,8 @@ group_counter_load(grn_ctx *ctx, group_counter *g, const char *expr_str, unsigne
       GRN_BULK_REWIND(&synonyms);
       GRN_BULK_REWIND(&nsubrecs_buf);
       GRN_BULK_REWIND(&id_buf);
-      grn_obj_get_value(ctx, g->nsubrecs_accessor, id, &nsubrecs_buf);
-      grn_obj_get_value(ctx, g->id_accessor, id, &id_buf);
+      grn_obj_get_value(ctx, nsubrecs_accessor, id, &nsubrecs_buf);
+      grn_obj_get_value(ctx, id_accessor, id, &id_buf);
       group_id = GRN_UINT32_VALUE(&id_buf);
 
       if (expression) {
@@ -311,8 +296,8 @@ group_counter_load(grn_ctx *ctx, group_counter *g, const char *expr_str, unsigne
       grn_id record_id = GRN_ID_NIL;
       GRN_BULK_REWIND(&record);
       GRN_BULK_REWIND(&nsubrecs_buf);
-      grn_obj_get_value(ctx, g->nsubrecs_accessor, id, &nsubrecs_buf);
-      grn_obj_get_value(ctx, g->key_accessor, id, &record);
+      grn_obj_get_value(ctx, nsubrecs_accessor, id, &nsubrecs_buf);
+      grn_obj_get_value(ctx, key_accessor, id, &record);
 
       if (expression) {
         GRN_RECORD_SET(ctx, expr_record, id);
@@ -345,6 +330,15 @@ exit :
   }
   if (expr_record) {
     grn_obj_unlink(ctx, expr_record);
+  }
+  if (id_accessor) {
+    grn_obj_unlink(ctx, id_accessor);
+  }
+  if (key_accessor) {
+    grn_obj_unlink(ctx, key_accessor);
+  }
+  if (nsubrecs_accessor) {
+    grn_obj_unlink(ctx, nsubrecs_accessor);
   }
   return rc;
 }
