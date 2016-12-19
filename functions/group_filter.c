@@ -119,11 +119,11 @@ group_counter_init(grn_ctx *ctx, group_counter *g, grn_obj *group_result, grn_ob
   }
 
   g->from_synonyms_column = grn_column_create(ctx, g->count_table,
-                                         GRN_GROUP_FILTER_FROM_SYNONYMS,
-                                         GRN_GROUP_FILTER_FROM_SYNONYMS_LEN,
-                                         NULL,
-                                         GRN_OBJ_COLUMN_VECTOR,
-                                         g->key_type);
+                                              GRN_GROUP_FILTER_FROM_SYNONYMS,
+                                              GRN_GROUP_FILTER_FROM_SYNONYMS_LEN,
+                                              NULL,
+                                              GRN_OBJ_COLUMN_VECTOR,
+                                              g->key_type);
 
   if (!g->from_synonyms_column) {
     rc = GRN_NO_MEMORY_AVAILABLE;
