@@ -1,6 +1,6 @@
 # group_filter Groonga function
 
-* ``group_filter("column_name"[, top_n])``
+* ``group_filter("column_name"[, top_n, expr])``
 
 columnをグループした結果の上位``top_n``件数のレコードで絞り込むセレクタ関数。
 クロス集計の前処理に使う想定。
@@ -11,6 +11,7 @@ columnをグループした結果の上位``top_n``件数のレコードで絞�
 
 * column_name: グループして絞り込むカラム名。
 * top_n: 絞り込む上位件数 デフォルト10
+* expr: グループ集計後の結果に適用されるスクリプト構文の式
 
 ベクターカラムが指定された場合、グループ上位の結果のみに書き換えた``#group_{column_name}``という一時カラムが作成されます。
 

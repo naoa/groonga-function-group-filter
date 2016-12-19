@@ -1,0 +1,159 @@
+plugin_register functions/group_filter
+[[0,0.0,0.0],true]
+table_create applicants TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+table_create ipcs TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+table_create docs TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+column_create docs applicants COLUMN_VECTOR applicants
+[[0,0.0,0.0],true]
+column_create docs ipcs COLUMN_VECTOR ShortText
+[[0,0.0,0.0],true]
+load --table docs
+[
+{"_key": "JP2001213456", "applicants": ["パナソニック", "三洋オプテックデザイン"], "ipcs": ["G06F", "G04A"]},
+{"_key": "JP2001213457", "applicants": ["パナソニック"], "ipcs": ["G04A", "G06F"]},
+{"_key": "JP2001213458", "applicants": ["ソニー"], "ipcs": ["G06F", "G04B"]},
+{"_key": "JP2001213459", "applicants": ["パナソニック", "三洋電機"], "ipcs": ["G06N"]},
+{"_key": "JP2001213452", "applicants": ["パナソニック", "ソニー"], "ipcs": ["G06N"]}
+]
+[[0,0.0,0.0],5]
+column_create applicants applicants COLUMN_INDEX docs applicants
+[[0,0.0,0.0],true]
+column_create ipcs ipcs COLUMN_INDEX docs ipcs
+[[0,0.0,0.0],true]
+column_create applicants synonym COLUMN_SCALAR ShortText
+[[0,0.0,0.0],true]
+load --table applicants
+[
+{"_key": "三洋電機", "synonym": "パナソニック"}
+]
+[[0,0.0,0.0],1]
+select docs   --filter '_id >= 1 && group_filter("applicants", 3, "synonym || _key")'   --output_columns _id,_score,_key,applicants,#group_applicants   --drilldowns[sum].keys #group_applicants
+[
+  [
+    0,
+    0.0,
+    0.0
+  ],
+  [
+    [
+      [
+        5
+      ],
+      [
+        [
+          "_id",
+          "UInt32"
+        ],
+        [
+          "_score",
+          "Int32"
+        ],
+        [
+          "_key",
+          "ShortText"
+        ],
+        [
+          "applicants",
+          "applicants"
+        ],
+        [
+          "#group_applicants",
+          "applicants"
+        ]
+      ],
+      [
+        1,
+        3,
+        "JP2001213456",
+        [
+          "パナソニック",
+          "三洋オプテックデザイン"
+        ],
+        [
+          "パナソニック",
+          "三洋オプテックデザイン"
+        ]
+      ],
+      [
+        2,
+        2,
+        "JP2001213457",
+        [
+          "パナソニック"
+        ],
+        [
+          "パナソニック"
+        ]
+      ],
+      [
+        3,
+        2,
+        "JP2001213458",
+        [
+          "ソニー"
+        ],
+        [
+          "ソニー"
+        ]
+      ],
+      [
+        4,
+        3,
+        "JP2001213459",
+        [
+          "パナソニック",
+          "三洋電機"
+        ],
+        [
+          "パナソニック",
+          "パナソニック"
+        ]
+      ],
+      [
+        5,
+        3,
+        "JP2001213452",
+        [
+          "パナソニック",
+          "ソニー"
+        ],
+        [
+          "パナソニック",
+          "ソニー"
+        ]
+      ]
+    ],
+    {
+      "sum": [
+        [
+          3
+        ],
+        [
+          [
+            "_key",
+            "ShortText"
+          ],
+          [
+            "_nsubrecs",
+            "Int32"
+          ]
+        ],
+        [
+          "パナソニック",
+          5
+        ],
+        [
+          "三洋オプテックデザイン",
+          1
+        ],
+        [
+          "ソニー",
+          2
+        ]
+      ]
+    }
+  ]
+]

@@ -32,6 +32,12 @@
 #define GRN_GROUP_FILTER_SUM_SORT_DESC "-#group_filter_sum"
 #define GRN_GROUP_FILTER_SUM_SORT_DESC_LEN 18
 
+#define GRN_GROUP_FILTER_FROM_SYNONYMS "#group_filter_from_synonyms"
+#define GRN_GROUP_FILTER_FROM_SYNONYMS_LEN 27
+
+#define GRN_GROUP_FILTER_TO_SYNONYM "#group_filter_to_synonyms"
+#define GRN_GROUP_FILTER_TO_SYNONYM_LEN 25
+
 typedef struct {
   grn_obj *table;
   grn_obj *target_column;
@@ -44,6 +50,8 @@ typedef struct {
 
   grn_obj *count_table;
   grn_obj *sum_column;
+  grn_obj *from_synonyms_column;
+  grn_obj *to_synonym_column;
   grn_obj *top_n_table;
 } group_counter;
 
@@ -55,6 +63,14 @@ group_counter_fin(grn_ctx *ctx, group_counter *g)
   if (g->sum_column) {
     grn_obj_unlink(ctx, g->sum_column);
     g->sum_column = NULL;
+  }
+  if (g->from_synonyms_column) {
+    grn_obj_unlink(ctx, g->from_synonyms_column);
+    g->from_synonyms_column = NULL;
+  }
+  if (g->to_synonym_column) {
+    grn_obj_unlink(ctx, g->to_synonym_column);
+    g->to_synonym_column = NULL;
   }
   if (g->count_table) {
     grn_obj_unlink(ctx, g->count_table);
@@ -121,6 +137,34 @@ group_counter_init(grn_ctx *ctx, group_counter *g, grn_obj *group_result, grn_ob
     goto exit;
   }
 
+  g->from_synonyms_column = grn_column_create(ctx, g->count_table,
+                                         GRN_GROUP_FILTER_FROM_SYNONYMS,
+                                         GRN_GROUP_FILTER_FROM_SYNONYMS_LEN,
+                                         NULL,
+                                         GRN_OBJ_COLUMN_VECTOR,
+                                         g->key_type);
+
+  if (!g->from_synonyms_column) {
+    rc = GRN_NO_MEMORY_AVAILABLE;
+    GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
+                     "group_filter(): couldn't open column");
+    goto exit;
+  }
+
+  g->to_synonym_column = grn_column_create(ctx, g->count_table,
+                                           GRN_GROUP_FILTER_TO_SYNONYM,
+                                           GRN_GROUP_FILTER_TO_SYNONYM_LEN,
+                                           NULL,
+                                           GRN_OBJ_COLUMN_SCALAR,
+                                           g->key_type);
+
+  if (!g->to_synonym_column) {
+    rc = GRN_NO_MEMORY_AVAILABLE;
+    GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
+                     "group_filter(): couldn't open column");
+    goto exit;
+  }
+
   g->nsubrecs_accessor = grn_obj_column(ctx, group_result,
                                         GRN_COLUMN_NAME_NSUBRECS,
                                         GRN_COLUMN_NAME_NSUBRECS_LEN);
@@ -170,28 +214,72 @@ exit :
 }
 
 static grn_rc
-group_counter_load(grn_ctx *ctx, group_counter *g)
+group_counter_load(grn_ctx *ctx, group_counter *g, const char *expr_str, unsigned int expr_str_len)
 {
   grn_rc rc = GRN_SUCCESS;
   grn_obj record;
+  grn_obj synonyms;
   grn_obj id_buf;
   grn_obj nsubrecs_buf;
+  grn_obj *expression = NULL;
+  grn_obj *expr_record = NULL;
 
+  if (expr_str) {
+    GRN_EXPR_CREATE_FOR_QUERY(ctx, g->group_result, expression, expr_record);
+    if (!expression) {
+      rc = ctx->rc;
+      GRN_PLUGIN_ERROR(ctx,
+                       GRN_INVALID_ARGUMENT,
+                       "group_filter(): failed to create expression to compute value: %s",
+                       ctx->errbuf);
+      goto exit;
+    }
+    grn_expr_parse(ctx,
+                   expression,
+                   expr_str,
+                   expr_str_len,
+                   NULL,
+                   GRN_OP_MATCH,
+                   GRN_OP_AND,
+                   GRN_EXPR_SYNTAX_SCRIPT);
+
+    if (ctx->rc != GRN_SUCCESS) {
+      GRN_PLUGIN_ERROR(ctx,
+                       GRN_INVALID_ARGUMENT,
+                       "group_filter(): failed to parse value: %s",
+                       ctx->errbuf);
+      goto exit;
+    }
+  }
+
+  GRN_RECORD_INIT(&synonyms, GRN_OBJ_VECTOR, g->group_result->header.domain);
   GRN_RECORD_INIT(&record, 0, g->group_result->header.domain);
   GRN_UINT32_INIT(&nsubrecs_buf, 0);
   GRN_UINT32_INIT(&id_buf, 0);
 
   if (grn_obj_is_table(ctx, g->key_type)) {
     int added;
+    grn_obj *value;
     GRN_HASH_EACH_BEGIN(ctx, (grn_hash *)g->group_result, cursor, id) {
       grn_id record_id = GRN_ID_NIL;
       grn_id group_id;
+      grn_id expr_id = GRN_ID_NIL;
+      GRN_BULK_REWIND(&synonyms);
       GRN_BULK_REWIND(&nsubrecs_buf);
       GRN_BULK_REWIND(&id_buf);
       grn_obj_get_value(ctx, g->nsubrecs_accessor, id, &nsubrecs_buf);
       grn_obj_get_value(ctx, g->id_accessor, id, &id_buf);
       group_id = GRN_UINT32_VALUE(&id_buf);
-      if (group_id != GRN_ID_NIL) {
+
+      if (expression) {
+        GRN_RECORD_SET(ctx, expr_record, id);
+        value = grn_expr_exec(ctx, expression, 0);
+        expr_id = grn_table_get(ctx, g->key_type, GRN_BULK_HEAD(value), GRN_BULK_VSIZE(value));
+      }
+      if (expr_id != GRN_ID_NIL) {
+        record_id = grn_table_add(ctx, g->count_table,
+                                  &expr_id, sizeof(grn_id), &added);
+      } else if (group_id != GRN_ID_NIL) {
         record_id = grn_table_add(ctx, g->count_table,
                                   &group_id, sizeof(grn_id), &added);
       }
@@ -201,10 +289,24 @@ group_counter_load(grn_ctx *ctx, group_counter *g)
         } else {
           grn_obj_set_value(ctx, g->sum_column, record_id, &nsubrecs_buf, GRN_OBJ_INCR);
         }
+        if (expr_id != GRN_ID_NIL && expr_id != group_id) {
+          grn_id from_id;
+          grn_obj_get_value(ctx, g->from_synonyms_column, record_id, &synonyms);
+          GRN_RECORD_PUT(ctx, &synonyms, group_id);
+          grn_obj_set_value(ctx, g->from_synonyms_column, record_id, &synonyms, GRN_OBJ_SET);
+
+          GRN_BULK_REWIND(&record);
+          GRN_RECORD_SET(ctx, &record, expr_id);
+          from_id = grn_table_add(ctx, g->count_table, &group_id, sizeof(grn_id), NULL);
+          if (from_id) {
+            grn_obj_set_value(ctx, g->to_synonym_column, from_id, &record, GRN_OBJ_SET);
+          }
+        }
       }
     } GRN_HASH_EACH_END(ctx, cursor);
   } else {
     int added;
+    grn_obj *value;
     GRN_HASH_EACH_BEGIN(ctx, (grn_hash *)g->group_result, cursor, id) {
       grn_id record_id = GRN_ID_NIL;
       GRN_BULK_REWIND(&record);
@@ -212,9 +314,17 @@ group_counter_load(grn_ctx *ctx, group_counter *g)
       grn_obj_get_value(ctx, g->nsubrecs_accessor, id, &nsubrecs_buf);
       grn_obj_get_value(ctx, g->key_accessor, id, &record);
 
-      record_id = grn_table_add(ctx,g->count_table, 
-                                GRN_BULK_HEAD(&record),
-                                GRN_BULK_VSIZE(&record), &added);
+      if (expression) {
+        GRN_RECORD_SET(ctx, expr_record, id);
+        value = grn_expr_exec(ctx, expression, 0);
+        record_id = grn_table_add(ctx,g->count_table, 
+                                  GRN_BULK_HEAD(value),
+                                  GRN_BULK_VSIZE(value), &added);
+      } else {
+        record_id = grn_table_add(ctx,g->count_table, 
+                                  GRN_BULK_HEAD(&record),
+                                  GRN_BULK_VSIZE(&record), &added);
+      }
       if (record_id != GRN_ID_NIL) {
         if (added) {
           grn_obj_set_value(ctx, g->sum_column, record_id, &nsubrecs_buf, GRN_OBJ_SET);
@@ -225,9 +335,17 @@ group_counter_load(grn_ctx *ctx, group_counter *g)
     } GRN_HASH_EACH_END(ctx, cursor);
   }
   GRN_OBJ_FIN(ctx, &record);
+  GRN_OBJ_FIN(ctx, &synonyms);
   GRN_OBJ_FIN(ctx, &id_buf);
   GRN_OBJ_FIN(ctx, &nsubrecs_buf);
 
+exit :
+  if (expression) {
+    grn_obj_close(ctx, expression);
+  }
+  if (expr_record) {
+    grn_obj_unlink(ctx, expr_record);
+  }
   return rc;
 }
 
@@ -262,23 +380,41 @@ group_counter_sort_and_slice(grn_ctx *ctx, group_counter *g, unsigned int top_n)
       {
         if (grn_obj_is_table(ctx, g->key_type)) {
           //key accessor too dig to real bulk
+          unsigned int i;
           grn_obj *id_accessor = NULL;
           grn_obj id_buf;
+          grn_obj synonyms;
+          grn_obj record;
           GRN_UINT32_INIT(&id_buf, 0);
+          GRN_RECORD_INIT(&synonyms, GRN_OBJ_VECTOR, g->group_result->header.domain);
+          GRN_RECORD_INIT(&record, 0, g->group_result->header.domain);
           id_accessor = grn_obj_column(ctx, sorted,
                                        GRN_COLUMN_NAME_ID,
                                        GRN_COLUMN_NAME_ID_LEN);
           if (id_accessor) {
             GRN_ARRAY_EACH(ctx, (grn_array *)sorted, 0, 0, id, NULL, {
               grn_id group_id;
+              grn_id record_id;
               GRN_BULK_REWIND(&id_buf);
               grn_obj_get_value(ctx, id_accessor, id, &id_buf);
               group_id = GRN_UINT32_VALUE(&id_buf);
               grn_table_add(ctx, g->top_n_table, &group_id, sizeof(grn_id), NULL);
+              record_id = grn_table_get(ctx, g->count_table, &group_id, sizeof(grn_id));
+              if (record_id != GRN_ID_NIL) {
+                GRN_BULK_REWIND(&synonyms);
+                grn_obj_get_value(ctx, g->from_synonyms_column, record_id, &synonyms);
+                for (i = 0; i < grn_vector_size(ctx, &synonyms); i++) {
+                  grn_id from_group_id;
+                  from_group_id = GRN_RECORD_VALUE_AT(&synonyms, i);
+                  grn_table_add(ctx, g->top_n_table, &from_group_id, sizeof(grn_id), NULL);
+                }
+              }
             });
             grn_obj_unlink(ctx, id_accessor);
           }
           GRN_OBJ_FIN(ctx, &id_buf);
+          GRN_OBJ_FIN(ctx, &synonyms);
+          GRN_OBJ_FIN(ctx, &record);
         } else {
           grn_obj *key_accessor = NULL;
           grn_obj record;
@@ -437,6 +573,8 @@ group_counter_apply_temp_column(grn_ctx *ctx, group_counter *g,
     GRN_OBJ_INIT(&buf, GRN_VECTOR, 0, g->group_result->header.domain);
     GRN_OBJ_INIT(&write_buf, GRN_VECTOR, 0, g->group_result->header.domain);
   }
+  grn_obj id_buf;
+  GRN_RECORD_INIT(&id_buf, 0, g->group_result->header.domain);
 
   GRN_HASH_EACH_BEGIN(ctx, (grn_hash *)res, cursor, id) {
     unsigned int i;
@@ -446,8 +584,17 @@ group_counter_apply_temp_column(grn_ctx *ctx, group_counter *g,
     if (grn_obj_is_table(ctx, g->key_type)) {
       for (i = 0; i < grn_vector_size(ctx, &buf); i++) {
        grn_id group_id = GRN_RECORD_VALUE_AT(&buf, i);
-       if (grn_table_get(ctx, g->top_n_table, &group_id, sizeof(grn_id)) != GRN_ID_NIL) {
-         GRN_RECORD_PUT(ctx, &write_buf, group_id);
+       grn_id record_id;
+       record_id = grn_table_get(ctx, g->top_n_table, &group_id, sizeof(grn_id));
+       if (record_id != GRN_ID_NIL) {
+         GRN_BULK_REWIND(&id_buf);
+         record_id = grn_table_get(ctx, g->count_table, &group_id, sizeof(grn_id));
+         grn_obj_get_value(ctx, g->to_synonym_column, record_id, &id_buf);
+         if (GRN_RECORD_VALUE(&id_buf) != GRN_ID_NIL) {
+           GRN_RECORD_PUT(ctx, &write_buf, GRN_RECORD_VALUE(&id_buf));
+         } else {
+           GRN_RECORD_PUT(ctx, &write_buf, group_id);
+         }
        }
       }
     } else {
@@ -467,6 +614,7 @@ group_counter_apply_temp_column(grn_ctx *ctx, group_counter *g,
       grn_obj_set_value(ctx, temp_group_column, id, &write_buf, GRN_OBJ_SET);
     }
   } GRN_HASH_EACH_END(ctx, cursor);
+  GRN_OBJ_FIN(ctx, &id_buf);
   GRN_OBJ_FIN(ctx, &buf);
   GRN_OBJ_FIN(ctx, &write_buf);
 
@@ -485,19 +633,21 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
 {
   grn_obj *target_table = table;
   grn_obj *group_key;
+  const char *expr_str = NULL;
+  unsigned int expr_str_len = 0;
   uint32_t top_n = 10;
   unsigned int n_hits;
   grn_rc rc = GRN_SUCCESS;
 
-  if (nargs < 2 || nargs > 4) {
+  if (nargs < 2 || nargs > 5) {
     GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
-                     "group_filter(): wrong number of arguments (%d for 1..2)",
+                     "group_filter(): wrong number of arguments (%d for 1..3)",
                      nargs - 1);
     return GRN_INVALID_ARGUMENT;
   }
   group_key = args[1];
 
-  if (nargs == 3) {
+  if (nargs >= 3) {
     if (!(args[2]->header.type == GRN_BULK &&
           ((args[2]->header.domain == GRN_DB_INT32)))) {
       GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
@@ -505,6 +655,16 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
       return GRN_INVALID_ARGUMENT;
     }
     top_n = GRN_UINT32_VALUE(args[2]);
+  }
+  if (nargs >= 4) {
+    if (!(args[3]->header.type == GRN_BULK &&
+        grn_type_id_is_text_family(ctx, args[3]->header.domain))) {
+      GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
+                       "group_filter(): 3rd argument must be text");
+      return GRN_INVALID_ARGUMENT;
+    }
+    expr_str = GRN_TEXT_VALUE(args[3]);
+    expr_str_len = GRN_TEXT_LEN(args[3]);
   }
 
   n_hits = grn_table_size(ctx, res);
@@ -547,7 +707,7 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
       group_counter group_counter;
 
       if (group_counter_init(ctx, &group_counter, result.table, table, group_key) == GRN_SUCCESS) {
-         rc = group_counter_load(ctx, &group_counter);
+         rc = group_counter_load(ctx, &group_counter, expr_str, expr_str_len);
          if (rc == GRN_SUCCESS) {
            rc = group_counter_sort_and_slice(ctx, &group_counter, top_n);
          }
