@@ -1,0 +1,30 @@
+plugin_register functions/group_filter
+table_create applicants TABLE_HASH_KEY ShortText
+table_create ipcs TABLE_HASH_KEY ShortText
+table_create docs TABLE_HASH_KEY ShortText
+column_create docs applicants COLUMN_VECTOR applicants
+column_create docs ipcs COLUMN_VECTOR ShortText
+load --table docs
+[
+{"_key": "JP2001213456", "applicants": ["三洋", "三洋オプテックデザイン"], "ipcs": ["G06F", "G04A"]},
+{"_key": "JP2001213457", "applicants": ["パナソニック"], "ipcs": ["G04A"]},
+{"_key": "JP2001213458", "applicants": ["ソニー"], "ipcs": ["G06F", "G04B"]},
+{"_key": "JP2001213459", "applicants": ["パナソニック", "三洋"], "ipcs": ["G06F"]}
+]
+column_create applicants applicants COLUMN_INDEX docs applicants
+column_create ipcs ipcs COLUMN_INDEX docs ipcs
+select docs \
+  --filter 'group_filter("applicants", 3) && group_filter("applicants", 3)' \
+  --output_columns _id,_score,_key,applicants,#group_applicants,group_applicants_2 \
+  --drilldowns[applicants_ipcs].keys #group_applicants,#group_applicants_2 \
+  --drilldowns[applicants_ipcs].columns[applicant].stage initial \
+  --drilldowns[applicants_ipcs].columns[applicant].type applicants \
+  --drilldowns[applicants_ipcs].columns[applicant].flags COLUMN_SCALAR \
+  --drilldowns[applicants_ipcs].columns[applicant].value '_key[0]' \
+  --drilldowns[applicants_ipcs].columns[applicant_2].stage initial \
+  --drilldowns[applicants_ipcs].columns[applicant_2].type applicants \
+  --drilldowns[applicants_ipcs].columns[applicant_2].flags COLUMN_SCALAR \
+  --drilldowns[applicants_ipcs].columns[applicant_2].value '_key[1]' \
+  --drilldowns[applicants_ipcs].output_columns applicant,applicant_2,_nsubrecs \
+  --drilldowns[applicants_ipcs].sort_keys applicant,applicant_2 \
+  --drilldowns[applicants_ipcs].limit -1

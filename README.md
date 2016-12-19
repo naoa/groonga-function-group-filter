@@ -14,6 +14,7 @@ columnをグループした結果の上位``top_n``件数のレコードで絞�
 * expr: グループ集計後の結果に適用されるスクリプト構文の式
 
 ベクターカラムが指定された場合、グループ上位の結果のみに書き換えた``#group_{column_name}``という一時カラムが作成されます。
+同じカラムが２個指定された場合、２個目は``#group_{column_name}_2``になります。
 
 ```bash
 plugin_register functions/group_filter

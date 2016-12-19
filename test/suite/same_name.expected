@@ -1,0 +1,154 @@
+plugin_register functions/group_filter
+[[0,0.0,0.0],true]
+table_create applicants TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+table_create ipcs TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+table_create docs TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+column_create docs applicants COLUMN_VECTOR applicants
+[[0,0.0,0.0],true]
+column_create docs ipcs COLUMN_VECTOR ShortText
+[[0,0.0,0.0],true]
+load --table docs
+[
+{"_key": "JP2001213456", "applicants": ["三洋", "三洋オプテックデザイン"], "ipcs": ["G06F", "G04A"]},
+{"_key": "JP2001213457", "applicants": ["パナソニック"], "ipcs": ["G04A"]},
+{"_key": "JP2001213458", "applicants": ["ソニー"], "ipcs": ["G06F", "G04B"]},
+{"_key": "JP2001213459", "applicants": ["パナソニック", "三洋"], "ipcs": ["G06F"]}
+]
+[[0,0.0,0.0],4]
+column_create applicants applicants COLUMN_INDEX docs applicants
+[[0,0.0,0.0],true]
+column_create ipcs ipcs COLUMN_INDEX docs ipcs
+[[0,0.0,0.0],true]
+select docs   --filter 'group_filter("applicants", 3) && group_filter("applicants", 3)'   --output_columns _id,_score,_key,applicants,#group_applicants,group_applicants_2   --drilldowns[applicants_ipcs].keys #group_applicants,#group_applicants_2   --drilldowns[applicants_ipcs].columns[applicant].stage initial   --drilldowns[applicants_ipcs].columns[applicant].type applicants   --drilldowns[applicants_ipcs].columns[applicant].flags COLUMN_SCALAR   --drilldowns[applicants_ipcs].columns[applicant].value '_key[0]'   --drilldowns[applicants_ipcs].columns[applicant_2].stage initial   --drilldowns[applicants_ipcs].columns[applicant_2].type applicants   --drilldowns[applicants_ipcs].columns[applicant_2].flags COLUMN_SCALAR   --drilldowns[applicants_ipcs].columns[applicant_2].value '_key[1]'   --drilldowns[applicants_ipcs].output_columns applicant,applicant_2,_nsubrecs   --drilldowns[applicants_ipcs].sort_keys applicant,applicant_2   --drilldowns[applicants_ipcs].limit -1
+[
+  [
+    0,
+    0.0,
+    0.0
+  ],
+  [
+    [
+      [
+        4
+      ],
+      [
+        [
+          "_id",
+          "UInt32"
+        ],
+        [
+          "_score",
+          "Int32"
+        ],
+        [
+          "_key",
+          "ShortText"
+        ],
+        [
+          "applicants",
+          "applicants"
+        ],
+        [
+          "#group_applicants",
+          "applicants"
+        ]
+      ],
+      [
+        1,
+        2,
+        "JP2001213456",
+        [
+          "三洋",
+          "三洋オプテックデザイン"
+        ],
+        [
+          "三洋"
+        ]
+      ],
+      [
+        4,
+        4,
+        "JP2001213459",
+        [
+          "パナソニック",
+          "三洋"
+        ],
+        [
+          "パナソニック",
+          "三洋"
+        ]
+      ],
+      [
+        2,
+        2,
+        "JP2001213457",
+        [
+          "パナソニック"
+        ],
+        [
+          "パナソニック"
+        ]
+      ],
+      [
+        3,
+        2,
+        "JP2001213458",
+        [
+          "ソニー"
+        ],
+        [
+          "ソニー"
+        ]
+      ]
+    ],
+    {
+      "applicants_ipcs": [
+        [
+          5
+        ],
+        [
+          [
+            "applicant",
+            "applicants"
+          ],
+          [
+            "applicant_2",
+            "applicants"
+          ],
+          [
+            "_nsubrecs",
+            "Int32"
+          ]
+        ],
+        [
+          "三洋",
+          "三洋",
+          2
+        ],
+        [
+          "三洋",
+          "パナソニック",
+          1
+        ],
+        [
+          "パナソニック",
+          "三洋",
+          1
+        ],
+        [
+          "パナソニック",
+          "パナソニック",
+          2
+        ],
+        [
+          "ソニー",
+          "ソニー",
+          1
+        ]
+      ]
+    }
+  ]
+]

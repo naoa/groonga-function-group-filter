@@ -544,6 +544,18 @@ group_counter_apply_temp_column(grn_ctx *ctx, group_counter *g,
                   (int)GRN_TEXT_LEN(column_name),
                   GRN_TEXT_VALUE(column_name));
          
+ 
+  temp_group_column = grn_obj_column(ctx, res,
+                                     GRN_TEXT_VALUE(&temp_group_column_name),
+                                     GRN_TEXT_LEN(&temp_group_column_name));
+  if (temp_group_column) {
+    GRN_BULK_REWIND(&temp_group_column_name);
+    grn_text_printf(ctx, &temp_group_column_name,
+                    "#group_%.*s_2",
+                    (int)GRN_TEXT_LEN(column_name),
+                    GRN_TEXT_VALUE(column_name));
+  }
+ 
   temp_group_column = grn_column_create(ctx, res,
                                         GRN_TEXT_VALUE(&temp_group_column_name),
                                         GRN_TEXT_LEN(&temp_group_column_name),
