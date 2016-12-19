@@ -98,7 +98,6 @@ group_counter_init(grn_ctx *ctx, group_counter *g, grn_obj *group_result, grn_ob
   g->top_n_table = NULL;
   g->count_table = grn_table_create(ctx, NULL, 0, NULL, GRN_OBJ_TABLE_HASH_KEY,
                                     g->key_type, NULL);
-  /* can't use _value because if it can't found value accessor if key_type is table */
   if (!g->count_table) {
     rc = GRN_NO_MEMORY_AVAILABLE;
     GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
