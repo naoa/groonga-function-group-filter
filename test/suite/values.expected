@@ -1,0 +1,84 @@
+plugin_register functions/group_filter
+[[0,0.0,0.0],true]
+table_create applicants TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+table_create ipcs TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+table_create docs TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+column_create docs applicants COLUMN_VECTOR applicants
+[[0,0.0,0.0],true]
+column_create docs ipcs COLUMN_VECTOR ShortText
+[[0,0.0,0.0],true]
+load --table docs
+[
+{"_key": "JP2001213456", "applicants": ["三洋", "三洋オプテックデザイン"], "ipcs": ["G06F", "G04A"]},
+{"_key": "JP2001213457", "applicants": ["パナソニック"], "ipcs": ["G04A"]},
+{"_key": "JP2001213458", "applicants": ["ソニー"], "ipcs": ["G06F", "G04B"]},
+{"_key": "JP2001213459", "applicants": ["パナソニック", "三洋電機"], "ipcs": ["G06F"]}
+]
+[[0,0.0,0.0],4]
+column_create applicants applicants COLUMN_INDEX docs applicants
+[[0,0.0,0.0],true]
+column_create ipcs ipcs COLUMN_INDEX docs ipcs
+[[0,0.0,0.0],true]
+select docs   --filter 'group_filter(applicants, "三洋 ソニー")'   --output_columns _id,_score,_key,applicants,#group_applicants
+[
+  [
+    0,
+    0.0,
+    0.0
+  ],
+  [
+    [
+      [
+        2
+      ],
+      [
+        [
+          "_id",
+          "UInt32"
+        ],
+        [
+          "_score",
+          "Int32"
+        ],
+        [
+          "_key",
+          "ShortText"
+        ],
+        [
+          "applicants",
+          "applicants"
+        ],
+        [
+          "#group_applicants",
+          "applicants"
+        ]
+      ],
+      [
+        3,
+        1,
+        "JP2001213458",
+        [
+          "ソニー"
+        ],
+        [
+          "ソニー"
+        ]
+      ],
+      [
+        1,
+        1,
+        "JP2001213456",
+        [
+          "三洋",
+          "三洋オプテックデザイン"
+        ],
+        [
+          "三洋"
+        ]
+      ]
+    ]
+  ]
+]
