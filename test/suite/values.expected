@@ -22,7 +22,7 @@ column_create applicants applicants COLUMN_INDEX docs applicants
 [[0,0.0,0.0],true]
 column_create ipcs ipcs COLUMN_INDEX docs ipcs
 [[0,0.0,0.0],true]
-select docs   --filter 'group_filter(applicants, "三洋 ソニー")'   --output_columns _id,_score,_key,applicants,#group_applicants
+select docs   --filter 'values_filter(applicants, "三洋 ソニー")'   --output_columns _id,_score,_key,applicants,#group_applicants
 [
   [
     0,

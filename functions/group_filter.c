@@ -486,13 +486,15 @@ select_with_target_records(grn_ctx *ctx, grn_obj *table, grn_obj *column,
 
     grn_expr_append_op(ctx, expr, GRN_OP_CALL, n_values + 1);
 
-    grn_table_select(ctx, table, expr, res, op);
-    if (ctx->rc != GRN_SUCCESS) {
-      rc = ctx->rc;
-      GRN_PLUGIN_ERROR(ctx,
-                       GRN_INVALID_ARGUMENT,
-                       "group_filter(): failed to execute filter: %s",
-                       ctx->errbuf);
+    if (n_values > 0) {
+      grn_table_select(ctx, table, expr, res, op);
+      if (ctx->rc != GRN_SUCCESS) {
+        rc = ctx->rc;
+        GRN_PLUGIN_ERROR(ctx,
+                         GRN_INVALID_ARGUMENT,
+                         "group_filter(): failed to execute filter: %s",
+                         ctx->errbuf);
+      }
     }
     GRN_OBJ_FIN(ctx, &record);
     grn_obj_unlink(ctx, key_accessor);
@@ -669,7 +671,6 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
   const char *expr_str = NULL;
   unsigned int expr_str_len = 0;
   uint32_t top_n = 10;
-  grn_obj *values = NULL;
   unsigned int n_hits;
   grn_rc rc = GRN_SUCCESS;
 
@@ -685,9 +686,6 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     if ((args[2]->header.type == GRN_BULK &&
          ((args[2]->header.domain == GRN_DB_INT32)))) {
       top_n = GRN_UINT32_VALUE(args[2]);
-    } else if ((args[2]->header.type == GRN_BULK &&
-                grn_type_id_is_text_family(ctx, args[2]->header.domain))) {
-      values = args[2];
     } else {
       GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
                        "group_filter(): 2nd argument must be UINT");
@@ -710,7 +708,7 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     target_table = res;
   }
 
-  if (!values) {
+  {
     grn_table_sort_key *keys = NULL;
     unsigned int n_keys = 0;
     grn_table_group_result result = {0};
@@ -762,23 +760,68 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     if (result.table) {
       grn_obj_unlink(ctx, result.table);
     }
-  } else if (GRN_TEXT_LEN(values) > 0) {
+  }
+
+exit :
+  
+  return rc;
+}
+
+static grn_rc
+selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_obj *index,
+                       GNUC_UNUSED int nargs, grn_obj **args,
+                       grn_obj *res, GNUC_UNUSED grn_operator op)
+{
+  grn_obj *column;
+  const char *expr_str = NULL;
+  unsigned int expr_str_len = 0;
+  grn_obj *values = NULL;
+  grn_rc rc = GRN_SUCCESS;
+
+  if (nargs < 2 || nargs > 5) {
+    GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
+                     "values_filter(): wrong number of arguments (%d for 1..3)",
+                     nargs - 1);
+    return GRN_INVALID_ARGUMENT;
+  }
+  column = args[1];
+
+  if (nargs >= 3) {
+    if ((args[2]->header.type == GRN_BULK &&
+         grn_type_id_is_text_family(ctx, args[2]->header.domain))) {
+      values = args[2];
+    } else {
+      GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
+                       "values_filter(): 2nd argument must be text");
+      return GRN_INVALID_ARGUMENT;
+    }
+  }
+  if (nargs >= 4) {
+    if (!(args[3]->header.type == GRN_BULK &&
+        grn_type_id_is_text_family(ctx, args[3]->header.domain))) {
+      GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
+                       "values_filter(): 3rd argument must be text");
+      return GRN_INVALID_ARGUMENT;
+    }
+    expr_str = GRN_TEXT_VALUE(args[3]);
+    expr_str_len = GRN_TEXT_LEN(args[3]);
+  }
+
+  if (GRN_TEXT_LEN(values) > 0) {
     grn_obj *values_table = NULL;
     grn_obj keywords;
     grn_obj *extract_expr = NULL;
     grn_obj *record;
     grn_expr_flags flags;
     size_t i, n_keywords;
-    grn_obj *column = NULL;
     grn_obj *range = NULL;
 
-    if (!grn_obj_is_column(ctx, group_key)) {
+    if (!grn_obj_is_column(ctx, column)) {
       GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
                        "group_filter(): if use string value in 2nd argument, 1st argument must be column instead of string");
       goto exit_values;
     }
 
-    column = group_key;
     range = grn_ctx_at(ctx, grn_obj_get_range(ctx, column));
 
     GRN_PTR_INIT(&keywords, GRN_OBJ_VECTOR, GRN_ID_NIL);
@@ -849,8 +892,6 @@ exit_values:
     GRN_OBJ_FIN(ctx, &keywords);
   }
 
-exit :
-  
   return rc;
 }
 
@@ -872,6 +913,14 @@ GRN_PLUGIN_REGISTER(grn_ctx *ctx)
     grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_EQUAL);
   }
 
+  {
+    grn_obj *selector_proc;
+
+    selector_proc = grn_proc_create(ctx, "values_filter", -1, GRN_PROC_FUNCTION,
+                                    NULL, NULL, NULL, 0, NULL);
+    grn_proc_set_selector(ctx, selector_proc, selector_values_filter);
+    grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_EQUAL);
+  }
 
   return ctx->rc;
 }
