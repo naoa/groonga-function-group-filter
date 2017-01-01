@@ -527,8 +527,8 @@ group_counter_select_with_top_n_group_records(grn_ctx *ctx, group_counter *g,
 static grn_rc
 apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
                   grn_obj *target_records_table,
-                  grn_obj *group_count_table,
-                  grn_obj *group_to_synonym_column,
+                  grn_obj *synonym_table,
+                  grn_obj *to_synonym_column,
                   grn_obj *res)
 {
   grn_rc rc = GRN_SUCCESS;
@@ -611,10 +611,10 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
         grn_id record_id;
         record_id = grn_table_get(ctx, target_records_table, &group_id, sizeof(grn_id));
         if (record_id != GRN_ID_NIL) {
-          if (group_count_table && group_to_synonym_column) {
+          if (synonym_table && to_synonym_column) {
             GRN_BULK_REWIND(&id_buf);
-            record_id = grn_table_get(ctx, group_count_table, &group_id, sizeof(grn_id));
-            grn_obj_get_value(ctx, group_to_synonym_column, record_id, &id_buf);
+            record_id = grn_table_get(ctx, synonym_table, &group_id, sizeof(grn_id));
+            grn_obj_get_value(ctx, to_synonym_column, record_id, &id_buf);
             if (GRN_RECORD_VALUE(&id_buf) != GRN_ID_NIL) {
               GRN_RECORD_PUT(ctx, &write_buf, GRN_RECORD_VALUE(&id_buf));
             } else {
@@ -816,6 +816,11 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
     size_t i, n_keywords;
     grn_obj *range = NULL;
 
+    grn_obj *expression = NULL;
+    grn_obj *expr_record = NULL;
+    grn_obj *synonym_table = NULL;
+    grn_obj *to_synonym_column = NULL;
+
     if (!grn_obj_is_column(ctx, column)) {
       GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
                        "values_filter(): if use string value in 2nd argument, 1st argument must be column instead of string");
@@ -857,17 +862,87 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
       goto exit_values;
     }
 
+    if (expr_str_len) {
+      synonym_table = grn_table_create(ctx, NULL, 0, NULL, GRN_OBJ_TABLE_HASH_KEY,
+                                          range, NULL);
+      if (!synonym_table) {
+        rc = GRN_NO_MEMORY_AVAILABLE;
+        GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
+                         "values_filter(): couldn't create synonym table");
+        goto exit_values;
+      }
+
+      to_synonym_column = grn_column_create(ctx, synonym_table,
+                                            GRN_GROUP_FILTER_TO_SYNONYM,
+                                            GRN_GROUP_FILTER_TO_SYNONYM_LEN,
+                                            NULL,
+                                            GRN_OBJ_COLUMN_SCALAR,
+                                            range);
+      if (!to_synonym_column) {
+        rc = GRN_NO_MEMORY_AVAILABLE;
+        GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
+                         "values_filter(): couldn't open column");
+        goto exit_values;
+      }
+
+      GRN_EXPR_CREATE_FOR_QUERY(ctx, range, expression, expr_record);
+      if (!expression) {
+        rc = ctx->rc;
+        GRN_PLUGIN_ERROR(ctx,
+                         GRN_INVALID_ARGUMENT,
+                         "values_filter(): failed to create expression to compute value: %s",
+                         ctx->errbuf);
+        goto exit_values;
+      }
+      grn_expr_parse(ctx,
+                     expression,
+                     expr_str,
+                     expr_str_len,
+                     NULL,
+                     GRN_OP_MATCH,
+                     GRN_OP_AND,
+                     GRN_EXPR_SYNTAX_SCRIPT);
+
+      if (ctx->rc != GRN_SUCCESS) {
+        GRN_PLUGIN_ERROR(ctx,
+                         GRN_INVALID_ARGUMENT,
+                         "values_filter(): failed to parse value: %s",
+                         ctx->errbuf);
+        goto exit_values;
+      }
+    }
+
     if (grn_obj_is_table(ctx, range)) {
+      grn_obj record;
+      GRN_RECORD_INIT(&record, 0, grn_obj_id(ctx, range));
       for (i = 0; i < n_keywords; i++) {
         grn_id id;
         grn_obj *keyword;
+        grn_obj *value;
         keyword = GRN_PTR_VALUE_AT(&keywords, i);
         id = grn_table_get(ctx, range, GRN_BULK_HEAD(keyword), GRN_BULK_VSIZE(keyword));
         if (id != GRN_ID_NIL) {
           grn_table_add(ctx, values_table, &id, sizeof(grn_id), NULL);
-          //todo: add expr exec for synonym
+          if (expression) {
+            grn_id expr_id;
+            GRN_RECORD_SET(ctx, expr_record, id);
+            value = grn_expr_exec(ctx, expression, 0);
+            expr_id = grn_table_get(ctx, range, GRN_BULK_HEAD(value), GRN_BULK_VSIZE(value));
+            if (expr_id != GRN_ID_NIL) {
+              grn_id synonym_id;
+              grn_table_add(ctx, values_table, &expr_id, sizeof(grn_id), NULL);
+              synonym_id = grn_table_add(ctx, synonym_table, &id, sizeof(grn_id), NULL);
+              if (synonym_id != GRN_ID_NIL) {
+                GRN_BULK_REWIND(&record);
+                GRN_RECORD_SET(ctx, &record, expr_id);
+                grn_obj_set_value(ctx, to_synonym_column, synonym_id, &record, GRN_OBJ_SET);
+              }
+            }
+          }
+
         }
       }
+      GRN_OBJ_FIN(ctx, &record);
     } else {
       for (i = 0; i < n_keywords; i++) {
         grn_obj *keyword;
@@ -879,10 +954,24 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
                                     res, op);
     
     if (rc == GRN_SUCCESS) {
-      rc = apply_temp_column(ctx, column, range, values_table, NULL, NULL, res);
+      rc = apply_temp_column(ctx, column, range, values_table,
+                             synonym_table, to_synonym_column, res);
     }
 
 exit_values:
+    if (to_synonym_column) {
+      grn_obj_unlink(ctx, to_synonym_column);
+    }
+    if (synonym_table) {
+      grn_obj_unlink(ctx, synonym_table);
+    }
+    if (expression) {
+      grn_obj_close(ctx, expression);
+    }
+    if (expr_record) {
+      grn_obj_unlink(ctx, expr_record);
+    }
+
     if (values_table) {
       grn_obj_unlink(ctx, values_table);
     }

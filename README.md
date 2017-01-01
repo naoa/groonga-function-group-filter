@@ -24,7 +24,7 @@ columnをグループした結果の上位``top_n``件数のレコードで絞�
 
 * column: テーブルにあるカラムを指定。
 * values: 絞り込み対象の単語を空白区切りの文字列で入力。
-* expr: 未実装
+* expr: グループ集計後の結果に適用されるスクリプト構文の式(テーブル型の場合のみ）
 
 ```bash
 plugin_register functions/group_filter
