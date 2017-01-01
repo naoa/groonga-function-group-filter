@@ -1,6 +1,6 @@
 # group_filter Groonga function
 
-* ``group_filter("column_name"[, top_n, expr])``
+### ``group_filter("column_name"[, top_n, expr])``
 
 columnをグループした結果の上位``top_n``件数のレコードで絞り込むセレクタ関数。
 クロス集計の前処理に使う想定。
@@ -13,20 +13,18 @@ columnをグループした結果の上位``top_n``件数のレコードで絞�
 今のところ、``--filter``の最後に置けばいいはず。
 （オプティマイザなどによって入れ替えらえることはないはず。）
 
-* グループ上位で絞り込み
- * column_name: グループして絞り込むカラム名。 文字列で指定。
- * top_n: 絞り込む上位件数 デフォルト10 数値で指定。
- * expr: グループ集計後の結果に適用されるスクリプト構文の式
+* column_name: グループして絞り込むカラム名。 文字列で指定。
+* top_n: 絞り込む上位件数 デフォルト10 数値で指定。
+* expr: グループ集計後の結果に適用されるスクリプト構文の式
 
-* ``values_filter(column, "values")``
+### ``values_filter(column, "values")``
 
 空白区切りで値を指定して絞り込み。
 ベクターカラムが指定された場合、指定した値のみに書き換えた``#group_{column_name``という一時カラムが作成されます。グループの上位ではなく、値を指定して、クロス集計したい場合に上記と同じ使用感で使える。
 
-* 引数で渡した文字列による絞り込みモード
- * column: テーブルにあるカラムを指定。
- * values: 絞り込み対象の単語を空白区切りの文字列で入力。
- * expr: 未実装
+* column: テーブルにあるカラムを指定。
+* values: 絞り込み対象の単語を空白区切りの文字列で入力。
+* expr: 未実装
 
 ```bash
 plugin_register functions/group_filter
