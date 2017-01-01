@@ -872,7 +872,7 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
       for (i = 0; i < n_keywords; i++) {
         grn_obj *keyword;
         keyword = GRN_PTR_VALUE_AT(&keywords, i);
-        grn_table_add(ctx, range, GRN_BULK_HEAD(keyword), GRN_BULK_VSIZE(keyword), NULL);
+        grn_table_add(ctx, values_table, GRN_BULK_HEAD(keyword), GRN_BULK_VSIZE(keyword), NULL);
       }
     }
     rc = select_with_target_records(ctx, table, column, values_table, grn_obj_id(ctx, range),
