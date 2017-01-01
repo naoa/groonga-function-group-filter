@@ -818,7 +818,7 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
 
     if (!grn_obj_is_column(ctx, column)) {
       GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
-                       "group_filter(): if use string value in 2nd argument, 1st argument must be column instead of string");
+                       "values_filter(): if use string value in 2nd argument, 1st argument must be column instead of string");
       goto exit_values;
     }
 
@@ -840,7 +840,7 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
 
     if (rc != GRN_SUCCESS) {
       GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
-                       "group_filter(): failed to parse query");
+                       "values_filter(): failed to parse query");
       goto exit_values;
     }
 
@@ -853,7 +853,7 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
     if (!values_table) {
       rc = GRN_NO_MEMORY_AVAILABLE;
       GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
-                       "group_filter(): couldn't create table");
+                       "values_filter(): couldn't create table");
       goto exit_values;
     }
 
