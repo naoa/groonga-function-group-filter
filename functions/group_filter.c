@@ -77,15 +77,13 @@ group_counter_fin(grn_ctx *ctx, group_counter *g)
     grn_obj_unlink(ctx, g->top_n_table);
     g->top_n_table = NULL;
   }
-  if (g->target_column) {
-    grn_obj_unlink(ctx, g->target_column);
-    g->target_column = NULL;
-  }
+
+  g->target_column = NULL;
   g->table = NULL;
 }
 
 static grn_rc
-group_counter_init(grn_ctx *ctx, group_counter *g, grn_obj *group_result, grn_obj *table, grn_obj *column_name)
+group_counter_init(grn_ctx *ctx, group_counter *g, grn_obj *group_result, grn_obj *table, grn_obj *column)
 {
   grn_rc rc = GRN_SUCCESS;
 
@@ -93,7 +91,7 @@ group_counter_init(grn_ctx *ctx, group_counter *g, grn_obj *group_result, grn_ob
   g->key_type = grn_ctx_at(ctx, group_result->header.domain);
 
   g->table = NULL;
-  g->target_column = NULL;
+  g->target_column = column;
 
   g->top_n_table = NULL;
   g->count_table = grn_table_create(ctx, NULL, 0, NULL, GRN_OBJ_TABLE_HASH_KEY,
@@ -147,14 +145,6 @@ group_counter_init(grn_ctx *ctx, group_counter *g, grn_obj *group_result, grn_ob
   }
 
   g->table = table;
-  g->target_column = grn_obj_column(ctx, table,
-                                    GRN_TEXT_VALUE(column_name), GRN_TEXT_LEN(column_name));
-  if (!g->target_column) {
-    rc = GRN_INVALID_ARGUMENT;
-    GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
-                      "group_filter(): couldn't open column");
-    goto exit;
-  }
 
 exit :
   if (rc != GRN_SUCCESS) {
@@ -176,7 +166,7 @@ group_counter_load(grn_ctx *ctx, group_counter *g, const char *expr_str, unsigne
   grn_obj *expr_record = NULL;
   grn_obj *id_accessor = NULL;
   grn_obj *key_accessor = NULL;
-  grn_obj *nsubrecs_accessor = NULL;
+  grn_obj *target_nrecs_accessor = NULL;
 
   if (expr_str) {
     GRN_EXPR_CREATE_FOR_QUERY(ctx, g->group_result, expression, expr_record);
@@ -226,10 +216,16 @@ group_counter_load(grn_ctx *ctx, group_counter *g, const char *expr_str, unsigne
     goto exit;
   }
 
-  nsubrecs_accessor = grn_obj_column(ctx, g->group_result,
-                                     GRN_COLUMN_NAME_NSUBRECS,
-                                     GRN_COLUMN_NAME_NSUBRECS_LEN);
-  if (!nsubrecs_accessor) {
+  if (g->target_column->header.flags & GRN_OBJ_WITH_WEIGHT) {
+    target_nrecs_accessor = grn_obj_column(ctx, g->group_result,
+                                           GRN_COLUMN_NAME_SUM,
+                                           GRN_COLUMN_NAME_SUM_LEN);
+  } else {
+    target_nrecs_accessor = grn_obj_column(ctx, g->group_result,
+                                           GRN_COLUMN_NAME_NSUBRECS,
+                                           GRN_COLUMN_NAME_NSUBRECS_LEN);
+  }
+  if (!target_nrecs_accessor) {
     rc = GRN_NO_MEMORY_AVAILABLE;
     GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
                      "group_filter(): couldn't open column");
@@ -251,7 +247,7 @@ group_counter_load(grn_ctx *ctx, group_counter *g, const char *expr_str, unsigne
       GRN_BULK_REWIND(&synonyms);
       GRN_BULK_REWIND(&nsubrecs_buf);
       GRN_BULK_REWIND(&id_buf);
-      grn_obj_get_value(ctx, nsubrecs_accessor, id, &nsubrecs_buf);
+      grn_obj_get_value(ctx, target_nrecs_accessor, id, &nsubrecs_buf);
       grn_obj_get_value(ctx, id_accessor, id, &id_buf);
       group_id = GRN_UINT32_VALUE(&id_buf);
 
@@ -295,7 +291,7 @@ group_counter_load(grn_ctx *ctx, group_counter *g, const char *expr_str, unsigne
       grn_id record_id = GRN_ID_NIL;
       GRN_BULK_REWIND(&record);
       GRN_BULK_REWIND(&nsubrecs_buf);
-      grn_obj_get_value(ctx, nsubrecs_accessor, id, &nsubrecs_buf);
+      grn_obj_get_value(ctx, target_nrecs_accessor, id, &nsubrecs_buf);
       grn_obj_get_value(ctx, key_accessor, id, &record);
 
       if (expression) {
@@ -336,8 +332,8 @@ exit :
   if (key_accessor) {
     grn_obj_unlink(ctx, key_accessor);
   }
-  if (nsubrecs_accessor) {
-    grn_obj_unlink(ctx, nsubrecs_accessor);
+  if (target_nrecs_accessor) {
+    grn_obj_unlink(ctx, target_nrecs_accessor);
   }
   return rc;
 }
@@ -543,7 +539,6 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
                                         column_name,
                                         GRN_TABLE_MAX_KEY_SIZE);
   grn_id range_id = grn_obj_id(ctx, range);
-
   if ((column->header.flags & GRN_OBJ_COLUMN_TYPE_MASK) != GRN_OBJ_COLUMN_VECTOR) {
     return rc;
   }
@@ -597,6 +592,11 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
     GRN_OBJ_INIT(&buf, GRN_VECTOR, 0, range_id);
     GRN_OBJ_INIT(&write_buf, GRN_VECTOR, 0, range_id);
   }
+  if ((column->header.flags & GRN_OBJ_WITH_WEIGHT)) {
+    buf.header.flags |= GRN_OBJ_WITH_WEIGHT;
+    write_buf.header.flags |= GRN_OBJ_WITH_WEIGHT;
+  }
+
   grn_obj id_buf;
   GRN_RECORD_INIT(&id_buf, 0, range_id);
 
@@ -607,8 +607,10 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
     grn_obj_get_value(ctx, group_column, id, &buf);
     if (grn_obj_is_table(ctx, range)) {
       for (i = 0; i < grn_vector_size(ctx, &buf); i++) {
-        grn_id group_id = GRN_RECORD_VALUE_AT(&buf, i);
+        grn_id group_id;
         grn_id record_id;
+        unsigned int weight;
+        group_id = grn_uvector_get_element(ctx, &buf, i, &weight);
         record_id = grn_table_get(ctx, target_records_table, &group_id, sizeof(grn_id));
         if (record_id != GRN_ID_NIL) {
           if (synonym_table && to_synonym_column) {
@@ -616,12 +618,12 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
             record_id = grn_table_get(ctx, synonym_table, &group_id, sizeof(grn_id));
             grn_obj_get_value(ctx, to_synonym_column, record_id, &id_buf);
             if (GRN_RECORD_VALUE(&id_buf) != GRN_ID_NIL) {
-              GRN_RECORD_PUT(ctx, &write_buf, GRN_RECORD_VALUE(&id_buf));
+              grn_uvector_add_element(ctx, &write_buf, GRN_RECORD_VALUE(&id_buf), weight);
             } else {
-              GRN_RECORD_PUT(ctx, &write_buf, group_id);
+              grn_uvector_add_element(ctx, &write_buf, group_id, weight);
             }
           } else {
-            GRN_RECORD_PUT(ctx, &write_buf, group_id);
+            grn_uvector_add_element(ctx, &write_buf, group_id, weight);
           }
         }
       }
@@ -673,6 +675,7 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
   uint32_t top_n = 10;
   unsigned int n_hits;
   grn_rc rc = GRN_SUCCESS;
+  grn_obj *target_column = NULL;
 
   if (nargs < 2 || nargs > 5) {
     GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
@@ -681,6 +684,14 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     return GRN_INVALID_ARGUMENT;
   }
   group_key = args[1];
+  target_column = grn_obj_column(ctx, table,
+                                 GRN_TEXT_VALUE(group_key), GRN_TEXT_LEN(group_key));
+
+  if (!target_column) {
+    GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
+                     "group_filter(): 1st argument coludn't find column");
+    return GRN_INVALID_ARGUMENT;
+  }
 
   if (nargs >= 3) {
     if ((args[2]->header.type == GRN_BULK &&
@@ -715,6 +726,9 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
 
     result.limit = 1;
     result.flags = GRN_TABLE_GROUP_CALC_COUNT;
+    if (target_column->header.flags & GRN_OBJ_WITH_WEIGHT) {
+      result.flags |= GRN_TABLE_GROUP_CALC_SUM;
+    }
     result.op = 0;
     result.max_n_subrecs = 0;
     result.key_begin = 0;
@@ -742,7 +756,7 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     if (result.table) {
       group_counter group_counter;
 
-      if (group_counter_init(ctx, &group_counter, result.table, table, group_key) == GRN_SUCCESS) {
+      if (group_counter_init(ctx, &group_counter, result.table, table, target_column) == GRN_SUCCESS) {
          rc = group_counter_load(ctx, &group_counter, expr_str, expr_str_len);
          if (rc == GRN_SUCCESS) {
            rc = group_counter_sort_and_slice(ctx, &group_counter, top_n);
@@ -763,6 +777,9 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
   }
 
 exit :
+  if (target_column) {
+    grn_obj_close(ctx, target_column);
+  }
   
   return rc;
 }
