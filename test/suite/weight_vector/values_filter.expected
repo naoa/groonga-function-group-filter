@@ -99,18 +99,18 @@ select Memos   --filter 'values_filter(tags, "mroonga ruby")'   --output_columns
           ],
           [
             "_sum",
-            "Int64"
+            "Float"
           ]
         ],
         [
           "ruby",
           1,
-          120
+          120.0
         ],
         [
           "mroonga",
           1,
-          100
+          100.0
         ]
       ]
     }

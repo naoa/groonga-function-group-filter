@@ -22,5 +22,5 @@ load --table applicants
 ]
 
 select docs \
-  --filter 'group_filter("applicants", 2)' \
+  --filter 'group_filter(applicants, 2)' \
   --output_columns _id,_score,_key,applicants,#group_applicants

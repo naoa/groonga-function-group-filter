@@ -669,7 +669,6 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
                       grn_obj *res, GNUC_UNUSED grn_operator op)
 {
   grn_obj *target_table = table;
-  grn_obj *group_key;
   const char *expr_str = NULL;
   unsigned int expr_str_len = 0;
   uint32_t top_n = 10;
@@ -683,9 +682,7 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
                      nargs - 1);
     return GRN_INVALID_ARGUMENT;
   }
-  group_key = args[1];
-  target_column = grn_obj_column(ctx, table,
-                                 GRN_TEXT_VALUE(group_key), GRN_TEXT_LEN(group_key));
+  target_column = args[1];
 
   if (!target_column) {
     GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
@@ -723,6 +720,8 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     grn_table_sort_key *keys = NULL;
     unsigned int n_keys = 0;
     grn_table_group_result result = {0};
+    char key_name[GRN_TABLE_MAX_KEY_SIZE];
+    unsigned int key_name_size;
 
     result.limit = 1;
     result.flags = GRN_TABLE_GROUP_CALC_COUNT;
@@ -735,9 +734,10 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     result.key_end = 0;
     result.calc_target = NULL;
 
+    key_name_size = grn_column_name(ctx, target_column, key_name, GRN_TABLE_MAX_KEY_SIZE);
     keys = grn_table_sort_key_from_str(ctx,
-                                       GRN_TEXT_VALUE(group_key),
-                                       GRN_TEXT_LEN(group_key),
+                                       key_name,
+                                       key_name_size,
                                        target_table, &n_keys);
     if (!keys) {
       goto exit;
@@ -748,6 +748,13 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
 
     }
     grn_table_group(ctx, target_table, keys, n_keys, &result, 1);
+    rc = ctx->rc;
+    if (rc != GRN_SUCCESS) {
+      if (result.table) {
+        grn_obj_unlink(ctx, result.table);
+      }
+      goto exit;
+    }
 
     if (keys) {
       grn_table_sort_key_close(ctx, keys, n_keys);
@@ -777,9 +784,6 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
   }
 
 exit :
-  if (target_column) {
-    grn_obj_close(ctx, target_column);
-  }
   
   return rc;
 }

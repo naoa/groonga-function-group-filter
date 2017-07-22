@@ -31,7 +31,7 @@ load --table Memos
 ]
 
 select Memos \
-  --filter 'group_filter("tags", 2)' \
+  --filter 'group_filter(tags, 2)' \
   --output_columns _key,_score,tags,#group_tags \
   --drilldowns[sum_tag].keys #group_tags \
   --drilldowns[sum_tag].calc_types SUM \

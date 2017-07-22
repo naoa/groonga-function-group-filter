@@ -29,7 +29,7 @@ load --table applicants
 {"_key": "三洋", "synonym": "三洋電機"}
 ]
 [[0,0.0,0.0],1]
-select docs   --filter 'group_filter("applicants", 2)'   --output_columns _id,_score,_key,applicants,#group_applicants
+select docs   --filter 'group_filter(applicants, 2)'   --output_columns _id,_score,_key,applicants,#group_applicants
 [
   [
     0,

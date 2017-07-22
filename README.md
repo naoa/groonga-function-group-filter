@@ -1,6 +1,6 @@
 # group_filter Groonga function
 
-### ``group_filter("column_name"[, top_n, expr])``
+### ``group_filter(column[, top_n, expr])``
 
 columnをグループした結果の上位``top_n``件数のレコードで絞り込むセレクタ関数。
 クロス集計の前処理に使う想定。
@@ -13,7 +13,7 @@ columnをグループした結果の上位``top_n``件数のレコードで絞�
 今のところ、``--filter``の最後に置けばいいはず。
 （オプティマイザなどによって入れ替えらえることはないはず。）
 
-* column_name: グループして絞り込むカラム名。 文字列で指定。
+* column: グループして絞り込むカラム名。
 * top_n: 絞り込む上位件数 デフォルト10 数値で指定。
 * expr: グループ集計後の結果に適用されるスクリプト構文の式
 
@@ -52,7 +52,7 @@ column_create applicants applicants COLUMN_INDEX docs applicants
 column_create ipcs ipcs COLUMN_INDEX docs ipcs
 [[0,0.0,0.0],true]
 select docs \
-  --filter 'group_filter("applicants", 2) && group_filter("ipcs", 2)' \
+  --filter 'group_filter(applicants, 2) && group_filter(ipcs, 2)' \
   --output_columns _id,_score,_key,applicants,#group_applicants,ipcs,#group_ipcs \
   --drilldowns[applicants_ipcs].keys #group_applicants,#group_ipcs \
   --drilldowns[applicants_ipcs].columns[applicant].stage initial \

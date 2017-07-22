@@ -31,7 +31,7 @@ load --table Memos
 }
 ]
 [[0,0.0,0.0],3]
-select Memos   --filter 'group_filter("tags", 2)'   --output_columns _key,_score,tags,#group_tags   --drilldowns[sum_tag].keys #group_tags   --drilldowns[sum_tag].calc_types SUM   --drilldowns[sum_tag].calc_target tags   --drilldowns[sum_tag].output_columns _key,_nsubrecs,_sum
+select Memos   --filter 'group_filter(tags, 2)'   --output_columns _key,_score,tags,#group_tags   --drilldowns[sum_tag].keys #group_tags   --drilldowns[sum_tag].calc_types SUM   --drilldowns[sum_tag].calc_target tags   --drilldowns[sum_tag].output_columns _key,_nsubrecs,_sum
 [
   [
     0,
@@ -109,18 +109,18 @@ select Memos   --filter 'group_filter("tags", 2)'   --output_columns _key,_score
           ],
           [
             "_sum",
-            "Int64"
+            "Float"
           ]
         ],
         [
           "ruby",
           1,
-          120
+          120.0
         ],
         [
           "groonga",
           2,
-          110
+          110.0
         ]
       ]
     }

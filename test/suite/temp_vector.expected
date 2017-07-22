@@ -22,7 +22,7 @@ column_create applicants applicants COLUMN_INDEX docs applicants
 [[0,0.0,0.0],true]
 column_create ipcs ipcs COLUMN_INDEX docs ipcs
 [[0,0.0,0.0],true]
-select docs   --filter '_id >= 1 && group_filter("applicants", 2) && group_filter("ipcs", 1)'   --output_columns _id,_score,_key,applicants,#group_filter_applicants,ipcs,#group_filter_ipcs
+select docs   --filter '_id >= 1 && group_filter(applicants, 2) && group_filter(ipcs, 1)'   --output_columns _id,_score,_key,applicants,#group_filter_applicants,ipcs,#group_filter_ipcs
 [
   [
     0,

@@ -30,7 +30,7 @@ load --table applicants
 {"_key": "三洋電機", "synonym": "パナソニック"}
 ]
 [[0,0.0,0.0],1]
-select docs   --filter '_id >= 1 && group_filter("applicants", 3, "synonym || _key")'   --output_columns _id,_score,_key,applicants,#group_applicants   --drilldowns[sum].keys #group_applicants
+select docs   --filter '_id >= 1 && group_filter(applicants, 3, "synonym || _key")'   --output_columns _id,_score,_key,applicants,#group_applicants   --drilldowns[sum].keys #group_applicants
 [
   [
     0,

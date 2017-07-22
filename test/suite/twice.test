@@ -14,7 +14,7 @@ load --table docs
 column_create applicants applicants COLUMN_INDEX docs applicants
 column_create ipcs ipcs COLUMN_INDEX docs ipcs
 select docs \
-  --filter '_id >= 1 && group_filter("applicants", 2) && group_filter("ipcs", 2)' \
+  --filter '_id >= 1 && group_filter(applicants, 2) && group_filter(ipcs, 2)' \
   --output_columns _id,_score,_key,applicants,#group_applicants,ipcs,#group_ipcs \
   --drilldowns[applicants_ipcs].keys #group_applicants,#group_ipcs \
   --drilldowns[applicants_ipcs].columns[applicant].stage initial \
