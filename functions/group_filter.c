@@ -616,9 +616,13 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
           if (synonym_table && to_synonym_column) {
             GRN_BULK_REWIND(&id_buf);
             record_id = grn_table_get(ctx, synonym_table, &group_id, sizeof(grn_id));
-            grn_obj_get_value(ctx, to_synonym_column, record_id, &id_buf);
-            if (GRN_RECORD_VALUE(&id_buf) != GRN_ID_NIL) {
-              grn_uvector_add_element(ctx, &write_buf, GRN_RECORD_VALUE(&id_buf), weight);
+            if (record_id) {
+              grn_obj_get_value(ctx, to_synonym_column, record_id, &id_buf);
+              if (GRN_RECORD_VALUE(&id_buf) != GRN_ID_NIL) {
+                grn_uvector_add_element(ctx, &write_buf, GRN_RECORD_VALUE(&id_buf), weight);
+              } else {
+                grn_uvector_add_element(ctx, &write_buf, group_id, weight);
+              }
             } else {
               grn_uvector_add_element(ctx, &write_buf, group_id, weight);
             }
@@ -997,7 +1001,6 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
     }
     rc = select_with_target_records(ctx, table, column, values_table, grn_obj_id(ctx, range),
                                     res, op);
-    
     if (rc == GRN_SUCCESS) {
       rc = apply_temp_column(ctx, column, range, values_table,
                              synonym_table, to_synonym_column, res);
