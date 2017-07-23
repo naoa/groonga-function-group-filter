@@ -15,7 +15,7 @@ load --table docs
 {"_key": "JP2001213456", "applicants": ["パナソニック", "三洋オプテックデザイン"], "ipcs": ["G06F", "G04A"]},
 {"_key": "JP2001213457", "applicants": ["パナソニック"], "ipcs": ["G04A", "G06F"]},
 {"_key": "JP2001213458", "applicants": ["ソニー"], "ipcs": ["G06F", "G04B"]},
-{"_key": "JP2001213459", "applicants": ["パナソニック", "三洋電機"], "ipcs": ["G06N"]},
+{"_key": "JP2001213459", "applicants": ["三洋電機"], "ipcs": ["G06N"]},
 {"_key": "JP2001213452", "applicants": ["パナソニック", "ソニー"], "ipcs": ["G06N"]}
 ]
 [[0,0.0,0.0],5]
@@ -23,14 +23,7 @@ column_create applicants applicants COLUMN_INDEX docs applicants
 [[0,0.0,0.0],true]
 column_create ipcs ipcs COLUMN_INDEX docs ipcs
 [[0,0.0,0.0],true]
-column_create applicants synonym COLUMN_SCALAR ShortText
-[[0,0.0,0.0],true]
-load --table applicants
-[
-{"_key": "三洋電機", "synonym": "パナソニック"}
-]
-[[0,0.0,0.0],1]
-select docs   --filter 'values_filter(applicants, "三洋電機", "synonym || _key")'   --output_columns _id,_score,_key,applicants,#group_applicants   --drilldowns[sum].keys #group_applicants
+select docs   --filter 'values_filter(applicants, "パナソニック ソニー", "パナソニック", "三洋電機 三洋オプテックデザイン ソニー")'   --output_columns _id,_score,_key,applicants,#group_applicants   --drilldowns[sum].keys #group_applicants
 [
   [
     0,
@@ -40,7 +33,7 @@ select docs   --filter 'values_filter(applicants, "三洋電機", "synonym || _k
   [
     [
       [
-        4
+        5
       ],
       [
         [
@@ -65,12 +58,23 @@ select docs   --filter 'values_filter(applicants, "三洋電機", "synonym || _k
         ]
       ],
       [
-        4,
+        3,
+        1,
+        "JP2001213458",
+        [
+          "ソニー"
+        ],
+        [
+          "パナソニック"
+        ]
+      ],
+      [
+        5,
         2,
-        "JP2001213459",
+        "JP2001213452",
         [
           "パナソニック",
-          "三洋電機"
+          "ソニー"
         ],
         [
           "パナソニック",
@@ -79,13 +83,14 @@ select docs   --filter 'values_filter(applicants, "三洋電機", "synonym || _k
       ],
       [
         1,
-        1,
+        2,
         "JP2001213456",
         [
           "パナソニック",
           "三洋オプテックデザイン"
         ],
         [
+          "パナソニック",
           "パナソニック"
         ]
       ],
@@ -101,12 +106,11 @@ select docs   --filter 'values_filter(applicants, "三洋電機", "synonym || _k
         ]
       ],
       [
-        5,
+        4,
         1,
-        "JP2001213452",
+        "JP2001213459",
         [
-          "パナソニック",
-          "ソニー"
+          "三洋電機"
         ],
         [
           "パナソニック"
@@ -130,7 +134,7 @@ select docs   --filter 'values_filter(applicants, "三洋電機", "synonym || _k
         ],
         [
           "パナソニック",
-          5
+          7
         ]
       ]
     }
