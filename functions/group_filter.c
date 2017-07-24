@@ -826,8 +826,7 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
   grn_obj *column;
   grn_obj *values = NULL;
   grn_rc rc = GRN_SUCCESS;
-  grn_obj **synonym_args;
-  int synonym_nargs = 0;
+  grn_obj *synonyms = NULL;
 
   if (nargs < 2) {
     GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
@@ -847,18 +846,11 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
       return GRN_INVALID_ARGUMENT;
     }
   }
+
   if (nargs >= 4) {
-    int i;
-    synonym_args = &args[3];
-    synonym_nargs = nargs - 3;
-    for (i = 0; i < synonym_nargs; i+= 2) {
-      if (!(synonym_args[i]->header.type == GRN_BULK &&
-          grn_type_id_is_text_family(ctx, synonym_args[i]->header.domain))) {
-        GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
-                         "values_filter(): 3~ argument must be text");
-        return GRN_INVALID_ARGUMENT;
-      }
-    } 
+    if (args[3]->header.type == GRN_TABLE_HASH_KEY) {
+      synonyms = args[3];
+    }
   }
 
   if (GRN_TEXT_LEN(values) > 0) {
@@ -897,7 +889,7 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
       goto exit_values;
     }
 
-    if (synonym_nargs > 0) {
+    if (synonyms) {
       synonym_table = grn_table_create(ctx, NULL, 0, NULL, GRN_OBJ_TABLE_HASH_KEY,
                                           range, NULL);
       if (!synonym_table) {
@@ -923,8 +915,6 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
 
     if (grn_obj_is_table(ctx, range)) {
       grn_obj record;
-      grn_obj **synonym_args = &args[3];
-      int synonym_nargs = nargs - 3;
 
       GRN_RECORD_INIT(&record, 0, grn_obj_id(ctx, range));
       for (i = 0; i < n_keywords; i++) {
@@ -935,57 +925,55 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
         if (id != GRN_ID_NIL) {
           grn_table_add(ctx, values_table, &id, sizeof(grn_id), NULL);
 
-          if (synonym_nargs > 0) {
-            int j;
-            for (j = 0; j < synonym_nargs; j+= 2) {
-              if (GRN_TEXT_LEN(keyword) == GRN_TEXT_LEN(synonym_args[j]) &&
-                  !memcmp(GRN_TEXT_VALUE(keyword),
-                          GRN_TEXT_VALUE(synonym_args[j]), GRN_TEXT_LEN(keyword))) {
-                grn_id synonym_source_id;
-                synonym_source_id = grn_table_get(ctx, range,
-                                                  GRN_BULK_HEAD(synonym_args[j]),
-                                                  GRN_BULK_VSIZE(synonym_args[j]));
-                if (synonym_source_id != GRN_ID_NIL) {
-                  grn_obj synonym_words;
-                  size_t k, n_words;
-                  grn_obj *synonym_expr = NULL;
-                  grn_obj *synonym_record;
+          if (synonyms) {
+            grn_id hid;
+            grn_obj *value;
+            hid = grn_hash_get(ctx, (grn_hash *)synonyms, GRN_BULK_HEAD(keyword), GRN_BULK_VSIZE(keyword), (void **)&value);
+            if (hid) {
+              grn_id synonym_source_id;
+              synonym_source_id = grn_table_get(ctx, range,
+                                                GRN_BULK_HEAD(keyword),
+                                                GRN_BULK_VSIZE(keyword));
+              if (synonym_source_id != GRN_ID_NIL) {
+                grn_obj synonym_words;
+                size_t k, n_words;
+                grn_obj *synonym_expr = NULL;
+                grn_obj *synonym_record;
 
-                  grn_table_add(ctx, values_table, &synonym_source_id, sizeof(grn_id), NULL);
+                grn_table_add(ctx, values_table, &synonym_source_id, sizeof(grn_id), NULL);
 
-                  GRN_PTR_INIT(&synonym_words, GRN_OBJ_VECTOR, GRN_ID_NIL);
-                  rc = extract_keywords(ctx, table, column,
-                                        synonym_args[j + 1], &synonym_words, &n_words,
-                                        synonym_expr, synonym_record);
-                  if (rc != GRN_SUCCESS) {
-                    GRN_OBJ_FIN(ctx, &synonym_words);
-                    grn_obj_unlink(ctx, synonym_expr);
-                    goto exit_values;
-                  }
-
-                  for (k = 0; k < n_words; k++) {
-                    grn_obj *synonym_word;
-                    grn_id synonym_target_id;
-                    grn_id synonym_id;
-                    synonym_word = GRN_PTR_VALUE_AT(&synonym_words, k);
- 
-                    synonym_target_id = grn_table_get(ctx, range,
-                                                      GRN_BULK_HEAD(synonym_word),
-                                                      GRN_BULK_VSIZE(synonym_word));
-                    if (synonym_target_id != GRN_ID_NIL) {
-                      grn_table_add(ctx, values_table, &synonym_target_id, sizeof(grn_id), NULL);
-
-                      synonym_id = grn_table_add(ctx, synonym_table, &synonym_target_id, sizeof(grn_id), NULL);
-                      if (synonym_id != GRN_ID_NIL) {
-                        GRN_BULK_REWIND(&record);
-                        GRN_RECORD_SET(ctx, &record, id);
-                        grn_obj_set_value(ctx, to_synonym_column, synonym_id, &record, GRN_OBJ_SET);
-                      }
-                    }
-                  }
+                GRN_PTR_INIT(&synonym_words, GRN_OBJ_VECTOR, GRN_ID_NIL);
+                rc = extract_keywords(ctx, table, column,
+                                      value, &synonym_words, &n_words,
+                                      synonym_expr, synonym_record);
+                if (rc != GRN_SUCCESS) {
                   GRN_OBJ_FIN(ctx, &synonym_words);
                   grn_obj_unlink(ctx, synonym_expr);
+                  goto exit_values;
                 }
+
+                for (k = 0; k < n_words; k++) {
+                  grn_obj *synonym_word;
+                  grn_id synonym_target_id;
+                  grn_id synonym_id;
+                  synonym_word = GRN_PTR_VALUE_AT(&synonym_words, k);
+
+                  synonym_target_id = grn_table_get(ctx, range,
+                                                    GRN_BULK_HEAD(synonym_word),
+                                                    GRN_BULK_VSIZE(synonym_word));
+                  if (synonym_target_id != GRN_ID_NIL) {
+                    grn_table_add(ctx, values_table, &synonym_target_id, sizeof(grn_id), NULL);
+
+                    synonym_id = grn_table_add(ctx, synonym_table, &synonym_target_id, sizeof(grn_id), NULL);
+                    if (synonym_id != GRN_ID_NIL) {
+                      GRN_BULK_REWIND(&record);
+                      GRN_RECORD_SET(ctx, &record, id);
+                      grn_obj_set_value(ctx, to_synonym_column, synonym_id, &record, GRN_OBJ_SET);
+                    }
+                  }
+                }
+                GRN_OBJ_FIN(ctx, &synonym_words);
+                grn_obj_unlink(ctx, synonym_expr);
               }
             }
           }

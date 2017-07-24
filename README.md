@@ -17,15 +17,15 @@ columnをグループした結果の上位``top_n``件数のレコードで絞�
 * top_n: 絞り込む上位件数 デフォルト10 数値で指定。
 * expr: グループ集計後の結果に適用されるスクリプト構文の式
 
-### ``values_filter(column, "values"[, "synonym_key1", "sysnonym words1", ...])``
+### ``values_filter(column, "values"[, {"synonym_key1": "sysnonym words1", ...}])``
 
 空白区切りで値を指定して絞り込み。
 ベクターカラムが指定された場合、指定した値のみに書き換えた``#group_{column_name``という一時カラムが作成されます。グループの上位ではなく、値を指定して、クロス集計したい場合に上記と同じ使用感で使える。
 
 * column: テーブルにあるカラムを指定。
 * values: 絞り込み対象の単語を空白区切りの文字列で入力。
-* synonym_key: 名寄せしたいキーを指定(テーブル型の場合のみ）
-* synonym_words: 名寄せする対象を空白区切の文字列で入力(テーブル型の場合のみ） synonym_keyと合わせて２つセットでN個指定できる
+* synonym_key: 名寄せしたいキーをオブジェクトリテラル形式で指定(テーブル型の場合のみ）
+* synonym_words: 名寄せする対象を空白区切の文字列で入力(テーブル型の場合のみ）
 
 ```bash
 plugin_register functions/group_filter

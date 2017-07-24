@@ -16,6 +16,6 @@ column_create applicants applicants COLUMN_INDEX docs applicants
 column_create ipcs ipcs COLUMN_INDEX docs ipcs
 
 select docs \
-  --filter 'values_filter(applicants, "パナソニック ソニー", "パナソニック", "三洋電機 三洋オプテックデザイン ソニー")' \
+  --filter 'values_filter(applicants, "パナソニック ソニー", {"パナソニック": "三洋電機 三洋オプテックデザイン ソニー"})' \
   --output_columns _id,_score,_key,applicants,#group_applicants \
   --drilldowns[sum].keys #group_applicants
