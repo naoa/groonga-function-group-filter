@@ -210,6 +210,132 @@ select docs \
 ]
 ```
 
+### ``uniq_pair_filter(column1, column2)``
+
+column1とcolumn2の値で順不同でユニークなIDの組み合わせの場合のみ``true``を返す関数。  
+今のところ、column1とcolumn2はテーブル型のみを想定。  
+同じキーでマルチキードリルダウンをしてこれでフィルターすることにより、共起関係のみの集計結果にすることができる。
+
+```
+plugin_register functions/group_filter
+[[0,0.0,0.0],true]
+table_create Applicants TABLE_PAT_KEY ShortText
+[[0,0.0,0.0],true]
+table_create Patents TABLE_PAT_KEY ShortText
+[[0,0.0,0.0],true]
+column_create Patents applicants COLUMN_VECTOR Applicants
+[[0,0.0,0.0],true]
+load --table Patents
+[
+{"_key": "JP20000123456", "applicants": ["京都大学", "日本電信電話株式会社"]},
+{"_key": "JP20000123457", "applicants": ["京都大学", "ローム株式会社"]},
+{"_key": "JP20000123458", "applicants": ["日本電信電話株式会社", "ローム株式会社"]},
+{"_key": "JP20000123459", "applicants": ["日本電信電話株式会社", "京セラ株式会社"]},
+{"_key": "JP20000123460", "applicants": ["日本電信電話株式会社", "京都大学"]}
+]
+[[0,0.0,0.0],5]
+select Patents   --filter 'all_records()'   --drilldowns[co_applicants].keys applicants,applicants   --drilldowns[co_applicants].filter 'uniq_pair_filter(_key[0],_key[1]) == true'   --drilldowns[co_applicants].limit -1   --drilldowns[co_applicants].output_columns '_key[0],_key[1],_nsubrecs'   --output_columns '_key, applicants'
+[
+  [
+    0,
+    0.0,
+    0.0
+  ],
+  [
+    [
+      [
+        5
+      ],
+      [
+        [
+          "_key",
+          "ShortText"
+        ],
+        [
+          "applicants",
+          "Applicants"
+        ]
+      ],
+      [
+        "JP20000123456",
+        [
+          "京都大学",
+          "日本電信電話株式会社"
+        ]
+      ],
+      [
+        "JP20000123457",
+        [
+          "京都大学",
+          "ローム株式会社"
+        ]
+      ],
+      [
+        "JP20000123458",
+        [
+          "日本電信電話株式会社",
+          "ローム株式会社"
+        ]
+      ],
+      [
+        "JP20000123459",
+        [
+          "日本電信電話株式会社",
+          "京セラ株式会社"
+        ]
+      ],
+      [
+        "JP20000123460",
+        [
+          "日本電信電話株式会社",
+          "京都大学"
+        ]
+      ]
+    ],
+    {
+      "co_applicants": [
+        [
+          4
+        ],
+        [
+          [
+            "_key[0]",
+            null
+          ],
+          [
+            "_key[1]",
+            null
+          ],
+          [
+            "_nsubrecs",
+            "Int32"
+          ]
+        ],
+        [
+          "京都大学",
+          "日本電信電話株式会社",
+          2
+        ],
+        [
+          "京都大学",
+          "ローム株式会社",
+          1
+        ],
+        [
+          "日本電信電話株式会社",
+          "ローム株式会社",
+          1
+        ],
+        [
+          "日本電信電話株式会社",
+          "京セラ株式会社",
+          1
+        ]
+      ]
+    }
+  ]
+]
+```
 
 ## Install
 
