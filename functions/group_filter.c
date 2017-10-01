@@ -1014,6 +1014,41 @@ exit_values:
   return rc;
 }
 
+static grn_obj *
+func_uniq_pair_filter(grn_ctx *ctx, int n_args, grn_obj **args,
+                      grn_user_data *user_data)
+{
+  grn_obj *value = NULL;
+  grn_obj *domain1, *domain2;
+
+  value = grn_plugin_proc_alloc(ctx, user_data, GRN_DB_BOOL, 0);
+  if (!value) {
+    return NULL;
+  }
+
+  if (n_args != 2) {
+    GRN_BOOL_SET(ctx, value, GRN_FALSE);
+    goto exit;
+  }
+  domain1 = grn_ctx_at(ctx, args[0]->header.domain);
+  domain2 = grn_ctx_at(ctx, args[1]->header.domain);
+  if (!(grn_obj_is_table(ctx, domain1) && grn_obj_is_table(ctx, domain2))) {
+    GRN_BOOL_SET(ctx, value, GRN_FALSE);
+    goto exit;
+  }
+  if (domain1 != domain2) {
+    GRN_BOOL_SET(ctx, value, GRN_FALSE);
+    goto exit;
+  }
+
+  if (GRN_RECORD_VALUE(args[0]) < GRN_RECORD_VALUE(args[1])) {
+    GRN_BOOL_SET(ctx, value, GRN_TRUE);
+  }
+
+exit :
+  return value;
+}
+
 grn_rc
 GRN_PLUGIN_INIT(GNUC_UNUSED grn_ctx *ctx)
 {
@@ -1040,6 +1075,10 @@ GRN_PLUGIN_REGISTER(grn_ctx *ctx)
     grn_proc_set_selector(ctx, selector_proc, selector_values_filter);
     grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_EQUAL);
   }
+
+  grn_proc_create(ctx, "uniq_pair_filter", -1, GRN_PROC_FUNCTION,
+                  func_uniq_pair_filter,
+                  NULL, NULL, 0, NULL);
 
   return ctx->rc;
 }

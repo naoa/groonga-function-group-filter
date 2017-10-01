@@ -1,0 +1,23 @@
+plugin_register functions/group_filter
+
+table_create Applicants TABLE_PAT_KEY ShortText
+
+table_create Patents TABLE_PAT_KEY ShortText
+column_create Patents applicants COLUMN_VECTOR Applicants
+
+load --table Patents
+[
+{"_key": "JP20000123456", "applicants": ["京都大学", "日本電信電話株式会社"]},
+{"_key": "JP20000123457", "applicants": ["京都大学", "ローム株式会社"]},
+{"_key": "JP20000123458", "applicants": ["日本電信電話株式会社", "ローム株式会社"]},
+{"_key": "JP20000123459", "applicants": ["日本電信電話株式会社", "京セラ株式会社"]},
+{"_key": "JP20000123460", "applicants": ["日本電信電話株式会社", "京都大学"]}
+]
+
+select Patents \
+  --filter 'all_records()' \
+  --drilldowns[co_applicants].keys applicants,applicants \
+  --drilldowns[co_applicants].filter 'uniq_pair_filter(_key[0],_key[1]) == true' \
+  --drilldowns[co_applicants].limit -1 \
+  --drilldowns[co_applicants].output_columns '_key[0],_key[1],_nsubrecs' \
+  --output_columns '_key, applicants'
