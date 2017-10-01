@@ -1015,8 +1015,8 @@ exit_values:
 }
 
 static grn_obj *
-func_uniq_pair_filter(grn_ctx *ctx, int n_args, grn_obj **args,
-                      grn_user_data *user_data)
+func_is_asc_pair(grn_ctx *ctx, int n_args, grn_obj **args,
+                 grn_user_data *user_data)
 {
   grn_obj *value = NULL;
   grn_obj *domain1, *domain2;
@@ -1076,8 +1076,8 @@ GRN_PLUGIN_REGISTER(grn_ctx *ctx)
     grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_EQUAL);
   }
 
-  grn_proc_create(ctx, "uniq_pair_filter", -1, GRN_PROC_FUNCTION,
-                  func_uniq_pair_filter,
+  grn_proc_create(ctx, "is_asc_pair", -1, GRN_PROC_FUNCTION,
+                  func_is_asc_pair,
                   NULL, NULL, 0, NULL);
 
   return ctx->rc;

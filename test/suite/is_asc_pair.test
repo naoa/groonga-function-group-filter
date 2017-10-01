@@ -17,7 +17,7 @@ load --table Patents
 select Patents \
   --filter 'all_records()' \
   --drilldowns[co_applicants].keys applicants,applicants \
-  --drilldowns[co_applicants].filter 'uniq_pair_filter(_key[0],_key[1]) == true' \
+  --drilldowns[co_applicants].filter 'is_asc_pair(_key[0],_key[1]) == true' \
   --drilldowns[co_applicants].limit -1 \
   --drilldowns[co_applicants].output_columns '_key[0],_key[1],_nsubrecs' \
   --output_columns '_key, applicants'

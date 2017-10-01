@@ -210,9 +210,9 @@ select docs \
 ]
 ```
 
-### ``uniq_pair_filter(column1, column2)``
+### ``is_asc_pair(column1, column2)``
 
-column1とcolumn2の値で順不同でユニークなIDの組み合わせの場合のみ``true``を返す関数。  
+column1とcolumn2の値で昇順の組み合わせのIDの場合のみ``true``を返す関数。  
 今のところ、column1とcolumn2はテーブル型のみを想定。  
 同じキーでマルチキードリルダウンをしてこれでフィルターすることにより、共起関係のみの集計結果にすることができる。
 
@@ -234,7 +234,12 @@ load --table Patents
 {"_key": "JP20000123460", "applicants": ["日本電信電話株式会社", "京都大学"]}
 ]
 [[0,0.0,0.0],5]
-select Patents   --filter 'all_records()'   --drilldowns[co_applicants].keys applicants,applicants   --drilldowns[co_applicants].filter 'uniq_pair_filter(_key[0],_key[1]) == true'   --drilldowns[co_applicants].limit -1   --drilldowns[co_applicants].output_columns '_key[0],_key[1],_nsubrecs'   --output_columns '_key, applicants'
+select Patents   --filter 'all_records()' \
+  --drilldowns[co_applicants].keys applicants,applicants \
+  --drilldowns[co_applicants].filter 'is_asc_pair(_key[0],_key[1]) == true' \
+  --drilldowns[co_applicants].limit -1 \
+  --drilldowns[co_applicants].output_columns '_key[0],_key[1],_nsubrecs' \
+  --output_columns '_key, applicants'
 [
   [
     0,
