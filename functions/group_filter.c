@@ -457,7 +457,14 @@ select_with_target_records(grn_ctx *ctx, grn_obj *table, grn_obj *column,
   grn_obj *expr_record = NULL;
   int n_values = 0;
 
-  filter_proc = grn_ctx_get(ctx, "in_values", strlen("in_values"));
+  if ((column->header.flags & GRN_OBJ_WITH_WEIGHT)) {
+    filter_proc = grn_ctx_get(ctx, "tag_search", strlen("tag_search"));
+    if (!filter_proc) {
+      filter_proc = grn_ctx_get(ctx, "in_values", strlen("in_values"));
+    }
+  } else {
+    filter_proc = grn_ctx_get(ctx, "in_values", strlen("in_values"));
+  }
   if (!filter_proc) {
     rc = GRN_NO_MEMORY_AVAILABLE;
     GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
