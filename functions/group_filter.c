@@ -593,7 +593,7 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
                                         GRN_TEXT_VALUE(&temp_group_column_name),
                                         GRN_TEXT_LEN(&temp_group_column_name),
                                         NULL,
-                                        GRN_OBJ_COLUMN_VECTOR,
+                                        column->header.flags,
                                         range);
   GRN_OBJ_FIN(ctx, &temp_group_column_name);
 

@@ -85,9 +85,7 @@ select docs   --filter '_id >= 1 && group_filter("applicants.prefecture", 2) && 
           "三洋",
           "三洋オプテックデザイン"
         ],
-        [
-          "岐阜"
-        ],
+        "岐阜",
         [
           "G06F",
           "G04A"
@@ -104,9 +102,7 @@ select docs   --filter '_id >= 1 && group_filter("applicants.prefecture", 2) && 
         [
           "パナソニック"
         ],
-        [
-          "大阪"
-        ],
+        "大阪",
         [
           "G04A"
         ],
@@ -122,9 +118,7 @@ select docs   --filter '_id >= 1 && group_filter("applicants.prefecture", 2) && 
           "パナソニック",
           "三洋"
         ],
-        [
-          "大阪"
-        ],
+        "大阪",
         [
           "G06F"
         ],

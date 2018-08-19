@@ -68,9 +68,7 @@ select docs   --filter 'group_filter("applicants.prefecture", 2)'   --output_col
         [
           "三洋"
         ],
-        [
-          "大阪"
-        ]
+        "大阪"
       ]
     ]
   ]
