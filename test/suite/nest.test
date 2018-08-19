@@ -1,5 +1,4 @@
 plugin_register functions/group_filter
-#plugin_register functions/tag_search
 table_create prefectures TABLE_HASH_KEY ShortText
 table_create applicants TABLE_HASH_KEY ShortText
 table_create docs TABLE_HASH_KEY ShortText
@@ -23,8 +22,3 @@ column_create prefectures applicants_index COLUMN_INDEX applicants prefecture
 select docs \
   --filter 'group_filter("applicants.prefecture", 2)' \
   --output_columns '_id,_score,_key,applicants,#group_applicants_prefecture'
-
-
-#select docs \
-#  --filter 'in_values(applicants.synonym, "パナソニック")' \
-#  --output_columns _id,_score,_key,applicants,applicants.synonym.#group_applicants-synonym
