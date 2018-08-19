@@ -77,7 +77,9 @@ select docs   --filter 'values_filter("applicants.prefecture", "大阪 岐阜")'
           "三洋",
           "三洋オプテックデザイン"
         ],
-        "岐阜"
+        [
+          "岐阜"
+        ]
       ],
       [
         2,
@@ -86,7 +88,9 @@ select docs   --filter 'values_filter("applicants.prefecture", "大阪 岐阜")'
         [
           "パナソニック"
         ],
-        "大阪"
+        [
+          "大阪"
+        ]
       ],
       [
         4,
@@ -96,7 +100,9 @@ select docs   --filter 'values_filter("applicants.prefecture", "大阪 岐阜")'
           "パナソニック",
           "三洋電機"
         ],
-        "大阪"
+        [
+          "大阪"
+        ]
       ]
     ]
   ]
