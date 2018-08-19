@@ -729,6 +729,11 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
   if (target_column->header.type == GRN_BULK) {
     target_column = grn_obj_column(ctx, table, GRN_TEXT_VALUE(target_column), GRN_TEXT_LEN(target_column));
   }
+  if (!target_column) {
+    GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
+                     "group_filter(): 1st argument coludn't find column");
+    return GRN_INVALID_ARGUMENT;
+  }
 
   n_hits = grn_table_size(ctx, res);
   if (n_hits > 0) {
@@ -871,6 +876,11 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
   }
   if (column->header.type == GRN_BULK) {
     column = grn_obj_column(ctx, table, GRN_TEXT_VALUE(column), GRN_TEXT_LEN(column));
+  }
+  if (!column) {
+    GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
+                     "values_filter(): 1st argument coludn't find column");
+    return GRN_INVALID_ARGUMENT;
   }
 
   if (GRN_TEXT_LEN(values) > 0) {
