@@ -38,6 +38,19 @@
 #define GRN_GROUP_FILTER_TO_SYNONYM "#group_filter_to_synonyms"
 #define GRN_GROUP_FILTER_TO_SYNONYM_LEN 25
 
+static void
+replace_char(char *name, int len, char from, char to)
+{
+  char *p = (char *)name;
+  int i;
+  for (i = 0; i < len; i++) {
+    if (p[0] == from || p[0] == ' ') {
+      p[0] = to;
+    }
+    p++;
+  }
+}
+
 typedef struct {
   grn_obj *table;
   grn_obj *target_column;
@@ -539,9 +552,11 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
                                         column_name,
                                         GRN_TABLE_MAX_KEY_SIZE);
   grn_id range_id = grn_obj_id(ctx, range);
+/*
   if ((column->header.flags & GRN_OBJ_COLUMN_TYPE_MASK) != GRN_OBJ_COLUMN_VECTOR) {
     return rc;
   }
+*/
 
   group_column = grn_obj_column(ctx, res,
                                 column_name,
@@ -553,12 +568,12 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
     goto exit;
   }
 
+  replace_char(column_name, column_name_len, '.', '_');
   GRN_TEXT_INIT(&temp_group_column_name, 0);
   grn_text_printf(ctx, &temp_group_column_name,
                   "#group_%.*s",
                   column_name_len,
                   column_name);
-         
   temp_group_column = grn_obj_column(ctx, res,
                                      GRN_TEXT_VALUE(&temp_group_column_name),
                                      GRN_TEXT_LEN(&temp_group_column_name));
@@ -574,7 +589,7 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
                                         GRN_TEXT_VALUE(&temp_group_column_name),
                                         GRN_TEXT_LEN(&temp_group_column_name),
                                         NULL,
-                                        column->header.flags,
+                                        GRN_OBJ_COLUMN_VECTOR,
                                         range);
   GRN_OBJ_FIN(ctx, &temp_group_column_name);
 
@@ -714,6 +729,9 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     expr_str = GRN_TEXT_VALUE(args[3]);
     expr_str_len = GRN_TEXT_LEN(args[3]);
   }
+  if (target_column->header.type == GRN_BULK) {
+    target_column = grn_obj_column(ctx, table, GRN_TEXT_VALUE(target_column), GRN_TEXT_LEN(target_column));
+  }
 
   n_hits = grn_table_size(ctx, res);
   if (n_hits > 0) {
@@ -737,7 +755,6 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     result.key_begin = 0;
     result.key_end = 0;
     result.calc_target = NULL;
-
     key_name_size = grn_column_name(ctx, target_column, key_name, GRN_TABLE_MAX_KEY_SIZE);
     keys = grn_table_sort_key_from_str(ctx,
                                        key_name,
@@ -746,6 +763,7 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
     if (!keys) {
       goto exit;
     }
+
     result.key_end = n_keys - 1;
     if (n_keys > 1) {
       result.max_n_subrecs = 1;
@@ -759,7 +777,6 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
       }
       goto exit;
     }
-
     if (keys) {
       grn_table_sort_key_close(ctx, keys, n_keys);
     }
@@ -788,6 +805,9 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
   }
 
 exit :
+  if (grn_obj_is_accessor(ctx, target_column)) {
+    grn_obj_unlink(ctx, target_column);
+  }
   
   return rc;
 }
@@ -852,6 +872,9 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
       synonyms = args[3];
     }
   }
+  if (column->header.type == GRN_BULK) {
+    column = grn_obj_column(ctx, table, GRN_TEXT_VALUE(column), GRN_TEXT_LEN(column));
+  }
 
   if (GRN_TEXT_LEN(values) > 0) {
     grn_obj *values_table = NULL;
@@ -863,12 +886,6 @@ selector_values_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn
 
     grn_obj *synonym_table = NULL;
     grn_obj *to_synonym_column = NULL;
-
-    if (!grn_obj_is_column(ctx, column)) {
-      GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
-                       "values_filter(): if use string value in 2nd argument, 1st argument must be column instead of string");
-      goto exit_values;
-    }
 
     range = grn_ctx_at(ctx, grn_obj_get_range(ctx, column));
 
@@ -1009,6 +1026,10 @@ exit_values:
       grn_obj_unlink(ctx, extract_expr);
     }
     GRN_OBJ_FIN(ctx, &keywords);
+  }
+
+  if (grn_obj_is_accessor(ctx, column)) {
+    grn_obj_unlink(ctx, column);
   }
 
   return rc;

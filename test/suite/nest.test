@@ -1,0 +1,30 @@
+plugin_register functions/group_filter
+#plugin_register functions/tag_search
+table_create prefectures TABLE_HASH_KEY ShortText
+table_create applicants TABLE_HASH_KEY ShortText
+table_create docs TABLE_HASH_KEY ShortText
+column_create docs applicants COLUMN_VECTOR applicants
+column_create applicants prefecture COLUMN_SCALAR prefectures
+load --table docs
+[
+{"_key": "JP2001213456", "applicants": ["三洋"]},
+{"_key": "JP2001213457", "applicants": ["パナソニック"]},
+{"_key": "JP2001213458", "applicants": ["ソニー"]},
+{"_key": "JP2001213459", "applicants": ["パナソニック"]}
+]
+
+load --table applicants
+[
+{"_key": "三洋", "prefecture": "大阪"}
+]
+column_create applicants applicants COLUMN_INDEX docs applicants
+column_create prefectures applicants_index COLUMN_INDEX applicants prefecture
+
+select docs \
+  --filter 'group_filter("applicants.prefecture", 2)' \
+  --output_columns '_id,_score,_key,applicants,#group_applicants_prefecture'
+
+
+#select docs \
+#  --filter 'in_values(applicants.synonym, "パナソニック")' \
+#  --output_columns _id,_score,_key,applicants,applicants.synonym.#group_applicants-synonym

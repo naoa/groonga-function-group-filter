@@ -1,0 +1,77 @@
+plugin_register functions/group_filter
+[[0,0.0,0.0],true]
+table_create prefectures TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+table_create applicants TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+table_create docs TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+column_create docs applicants COLUMN_VECTOR applicants
+[[0,0.0,0.0],true]
+column_create applicants prefecture COLUMN_SCALAR prefectures
+[[0,0.0,0.0],true]
+load --table docs
+[
+{"_key": "JP2001213456", "applicants": ["三洋"]},
+{"_key": "JP2001213457", "applicants": ["パナソニック"]},
+{"_key": "JP2001213458", "applicants": ["ソニー"]},
+{"_key": "JP2001213459", "applicants": ["パナソニック"]}
+]
+[[0,0.0,0.0],4]
+load --table applicants
+[
+{"_key": "三洋", "prefecture": "大阪"}
+]
+[[0,0.0,0.0],1]
+column_create applicants applicants COLUMN_INDEX docs applicants
+[[0,0.0,0.0],true]
+column_create prefectures applicants_index COLUMN_INDEX applicants prefecture
+[[0,0.0,0.0],true]
+select docs   --filter 'group_filter("applicants.prefecture", 2)'   --output_columns '_id,_score,_key,applicants,#group_applicants_prefecture'
+[
+  [
+    0,
+    0.0,
+    0.0
+  ],
+  [
+    [
+      [
+        1
+      ],
+      [
+        [
+          "_id",
+          "UInt32"
+        ],
+        [
+          "_score",
+          "Int32"
+        ],
+        [
+          "_key",
+          "ShortText"
+        ],
+        [
+          "applicants",
+          "applicants"
+        ],
+        [
+          "#group_applicants_prefecture",
+          "prefectures"
+        ]
+      ],
+      [
+        1,
+        1,
+        "JP2001213456",
+        [
+          "三洋"
+        ],
+        [
+          "大阪"
+        ]
+      ]
+    ]
+  ]
+]
