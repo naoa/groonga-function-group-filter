@@ -457,15 +457,12 @@ select_with_target_records(grn_ctx *ctx, grn_obj *table, grn_obj *column,
   grn_obj *expr_record = NULL;
   int n_values = 0;
 
-  filter_proc = grn_ctx_get(ctx, "tag_search", strlen("tag_search"));
+  filter_proc = grn_ctx_get(ctx, "in_values", strlen("in_values"));
   if (!filter_proc) {
-    filter_proc = grn_ctx_get(ctx, "in_values", strlen("in_values"));
-    if (!filter_proc) {
-      rc = GRN_NO_MEMORY_AVAILABLE;
-      GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
-                       "group_filter(): couldn't open in_values proc");
-      goto exit;
-    }
+    rc = GRN_NO_MEMORY_AVAILABLE;
+    GRN_PLUGIN_ERROR(ctx, GRN_NO_MEMORY_AVAILABLE,
+                     "group_filter(): couldn't open in_values proc");
+    goto exit;
   }
 
   GRN_EXPR_CREATE_FOR_QUERY(ctx, table, expr, expr_record);
