@@ -1,0 +1,19 @@
+plugin_register functions/group_filter
+table_create applicants TABLE_HASH_KEY ShortText
+table_create ipcs TABLE_HASH_KEY ShortText
+table_create docs TABLE_HASH_KEY ShortText
+column_create docs applicant COLUMN_SCALAR applicants
+column_create docs ipcs COLUMN_VECTOR ShortText
+load --table docs
+[
+{"_key": "JP2001213456", "applicant": "三洋", "ipcs": ["G06F", "G04A"]},
+{"_key": "JP2001213457", "applicant": "パナソニック", "ipcs": ["G04A"]},
+{"_key": "JP2001213458", "applicant": "ソニー", "ipcs": ["G06F", "G04B"]},
+{"_key": "JP2001213459", "applicant": "パナソニック", "ipcs": ["G06F"]}
+]
+column_create applicants applicant COLUMN_INDEX docs applicant
+column_create ipcs ipcs COLUMN_INDEX docs ipcs
+
+select docs \
+  --filter 'group_filter(applicant, 2)' \
+  --output_columns _id,_score,_key,applicant,#group_applicant

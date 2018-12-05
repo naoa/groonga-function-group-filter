@@ -625,11 +625,11 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
     GRN_BULK_REWIND(&write_buf);
     grn_obj_get_value(ctx, group_column, id, &buf);
     if (grn_obj_is_table(ctx, range)) {
-      for (i = 0; i < grn_vector_size(ctx, &buf); i++) {
+      if (buf.header.type != GRN_UVECTOR) {
         grn_id group_id;
         grn_id record_id;
-        unsigned int weight;
-        group_id = grn_uvector_get_element(ctx, &buf, i, &weight);
+        group_id = GRN_RECORD_VALUE(&buf);
+
         record_id = grn_table_get(ctx, target_records_table, &group_id, sizeof(grn_id));
         if (record_id != GRN_ID_NIL) {
           if (synonym_table && to_synonym_column) {
@@ -638,16 +638,45 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
             if (record_id) {
               grn_obj_get_value(ctx, to_synonym_column, record_id, &id_buf);
               if (GRN_RECORD_VALUE(&id_buf) != GRN_ID_NIL) {
-                grn_uvector_add_element(ctx, &write_buf, GRN_RECORD_VALUE(&id_buf), weight);
+                grn_uvector_add_element(ctx, &write_buf, GRN_RECORD_VALUE(&id_buf), 0);
+              } else {
+                grn_uvector_add_element(ctx, &write_buf, group_id, 0);
+              }
+            } else {
+              grn_uvector_add_element(ctx, &write_buf, group_id, 0);
+            }
+          } else {
+            grn_uvector_add_element(ctx, &write_buf, group_id, 0);
+          }
+        }
+
+      } else {
+        for (i = 0; i < grn_vector_size(ctx, &buf); i++) {
+          grn_id group_id;
+          grn_id record_id;
+          unsigned int weight;
+          group_id = grn_uvector_get_element(ctx, &buf, i, &weight);
+
+          record_id = grn_table_get(ctx, target_records_table, &group_id, sizeof(grn_id));
+          if (record_id != GRN_ID_NIL) {
+            if (synonym_table && to_synonym_column) {
+              GRN_BULK_REWIND(&id_buf);
+              record_id = grn_table_get(ctx, synonym_table, &group_id, sizeof(grn_id));
+              if (record_id) {
+                grn_obj_get_value(ctx, to_synonym_column, record_id, &id_buf);
+                if (GRN_RECORD_VALUE(&id_buf) != GRN_ID_NIL) {
+                  grn_uvector_add_element(ctx, &write_buf, GRN_RECORD_VALUE(&id_buf), weight);
+                } else {
+                  grn_uvector_add_element(ctx, &write_buf, group_id, weight);
+                }
               } else {
                 grn_uvector_add_element(ctx, &write_buf, group_id, weight);
               }
             } else {
               grn_uvector_add_element(ctx, &write_buf, group_id, weight);
             }
-          } else {
-            grn_uvector_add_element(ctx, &write_buf, group_id, weight);
           }
+
         }
       }
     } else {
