@@ -77,7 +77,6 @@ select docs   --filter 'values_filter(applicants, "パナソニック ソニー"
           "ソニー"
         ],
         [
-          "パナソニック",
           "パナソニック"
         ]
       ],
@@ -90,7 +89,6 @@ select docs   --filter 'values_filter(applicants, "パナソニック ソニー"
           "三洋オプテックデザイン"
         ],
         [
-          "パナソニック",
           "パナソニック"
         ]
       ],
@@ -134,7 +132,7 @@ select docs   --filter 'values_filter(applicants, "パナソニック ソニー"
         ],
         [
           "パナソニック",
-          7
+          5
         ]
       ]
     }

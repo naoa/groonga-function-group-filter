@@ -108,7 +108,6 @@ select docs   --filter '_id >= 1 && group_filter(applicants, 3, "synonym || _key
           "三洋電機"
         ],
         [
-          "パナソニック",
           "パナソニック"
         ]
       ],
@@ -143,7 +142,7 @@ select docs   --filter '_id >= 1 && group_filter(applicants, 3, "synonym || _key
         ],
         [
           "パナソニック",
-          5
+          4
         ],
         [
           "三洋オプテックデザイン",
