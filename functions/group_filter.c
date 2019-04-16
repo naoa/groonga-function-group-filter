@@ -29,8 +29,8 @@
 #define GRN_GROUP_FILTER_SUM "#group_filter_sum"
 #define GRN_GROUP_FILTER_SUM_LEN 17
 
-#define GRN_GROUP_FILTER_SUM_SORT_DESC "-#group_filter_sum"
-#define GRN_GROUP_FILTER_SUM_SORT_DESC_LEN 18
+#define GRN_GROUP_FILTER_SUM_SORT_DESC "-#group_filter_sum,_key"
+#define GRN_GROUP_FILTER_SUM_SORT_DESC_LEN 23
 
 #define GRN_GROUP_FILTER_FROM_SYNONYMS "#group_filter_from_synonyms"
 #define GRN_GROUP_FILTER_FROM_SYNONYMS_LEN 27
