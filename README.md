@@ -1,6 +1,6 @@
 # group_filter Groonga function
 
-### ``group_filter(column[, top_n, expr])``
+### ``group_filter(column[, top_n, expr, is_stop_column])``
 
 columnをグループした結果の上位``top_n``件数のレコードで絞り込むセレクタ関数。
 クロス集計の前処理に使う想定。
@@ -17,6 +17,7 @@ columnをグループした結果の上位``top_n``件数のレコードで絞�
 * column: グループして絞り込むカラム名。ネストしたカラムを指定する場合は文字列。
 * top_n: 絞り込む上位件数 デフォルト10 数値で指定。
 * expr: グループ集計後の結果に適用されるスクリプト構文の式
++ is_stop_column: 除外対象のフラグがセットされたカラム
 
 ### ``values_filter(column, "values"[, {"synonym_key1": "sysnonym words1", ...}])``
 

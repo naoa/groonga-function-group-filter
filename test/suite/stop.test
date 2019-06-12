@@ -1,0 +1,30 @@
+plugin_register functions/group_filter
+table_create applicants TABLE_HASH_KEY ShortText
+table_create ipcs TABLE_HASH_KEY ShortText
+table_create docs TABLE_HASH_KEY ShortText
+column_create docs applicants COLUMN_VECTOR applicants
+column_create docs ipcs COLUMN_VECTOR ShortText
+load --table docs
+[
+{"_key": "JP2001213456", "applicants": ["パナソニック", "三洋オプテックデザイン"], "ipcs": ["G06F", "G04A"]},
+{"_key": "JP2001213457", "applicants": ["パナソニック"], "ipcs": ["G04A", "G06F"]},
+{"_key": "JP2001213458", "applicants": ["ソニー"], "ipcs": ["G06F", "G04B"]},
+{"_key": "JP2001213459", "applicants": ["パナソニック", "三洋電機"], "ipcs": ["G06N"]},
+{"_key": "JP2001213452", "applicants": ["パナソニック", "ソニー"], "ipcs": ["G06N"]}
+]
+column_create applicants applicants COLUMN_INDEX docs applicants
+column_create ipcs ipcs COLUMN_INDEX docs ipcs
+
+column_create applicants synonym COLUMN_SCALAR ShortText
+column_create applicants is_filter_column COLUMN_SCALAR Bool
+
+load --table applicants
+[
+{"_key": "三洋電機", "synonym": "パナソニック"},
+{"_key": "ソニー", "is_filter_column": true}
+]
+
+select docs \
+  --filter '_id >= 1 && group_filter(applicants, 3, "synonym || _key","is_filter_column")' \
+  --output_columns _id,_score,_key,applicants,#group_applicants \
+  --drilldowns[sum].keys #group_applicants
