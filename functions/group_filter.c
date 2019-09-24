@@ -644,6 +644,16 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
                     "#group_%.*s_2",
                     column_name_len,
                     column_name);
+    temp_group_column = grn_obj_column(ctx, res,
+                                       GRN_TEXT_VALUE(&temp_group_column_name),
+                                       GRN_TEXT_LEN(&temp_group_column_name));
+    if (temp_group_column) {
+      GRN_BULK_REWIND(&temp_group_column_name);
+      grn_text_printf(ctx, &temp_group_column_name,
+                      "#group_%.*s_3",
+                      column_name_len,
+                      column_name);
+    }
   }
  
   temp_group_column = grn_column_create(ctx, res,
