@@ -668,8 +668,12 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
     GRN_RECORD_INIT(&write_buf, GRN_OBJ_VECTOR, range_id);
     max_id = table_get_max_id(ctx, range);
   } else {
-    GRN_OBJ_INIT(&buf, GRN_VECTOR, 0, range_id);
     GRN_OBJ_INIT(&write_buf, GRN_VECTOR, 0, range_id);
+    if (grn_obj_is_vector_column(ctx, column)) {
+      GRN_OBJ_INIT(&buf, GRN_VECTOR, 0, range_id);
+    } else {
+      GRN_OBJ_INIT(&buf, 0, 0, range_id);
+    }
   }
   if ((column->header.flags & GRN_OBJ_WITH_WEIGHT)) {
     buf.header.flags |= GRN_OBJ_WITH_WEIGHT;
@@ -745,14 +749,22 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
         }
       }
     } else {
-      for (i = 0; i < grn_vector_size(ctx, &buf); i++) {
-        const char *content;
-        unsigned int content_length;
-        content_length = grn_vector_get_element(ctx, &buf, i,
-                                                &content, NULL, &range_id);
-        if (grn_table_get(ctx, target_records_table, content, content_length) != GRN_ID_NIL) {
+      if (grn_obj_is_vector_column(ctx, column)) {
+        for (i = 0; i < grn_vector_size(ctx, &buf); i++) {
+          const char *content;
+          unsigned int content_length;
+          content_length = grn_vector_get_element(ctx, &buf, i,
+                                                  &content, NULL, &range_id);
+          if (grn_table_get(ctx, target_records_table, content, content_length) != GRN_ID_NIL) {
+            grn_vector_add_element(ctx, &write_buf,
+                                   content, content_length,
+                                   0, range_id);
+          }
+        }
+      } else {
+        if (grn_table_get(ctx, target_records_table, GRN_TEXT_VALUE(&buf), GRN_TEXT_LEN(&buf)) != GRN_ID_NIL) {
           grn_vector_add_element(ctx, &write_buf,
-                                 content, content_length,
+                                 GRN_TEXT_VALUE(&buf), GRN_TEXT_LEN(&buf),
                                  0, range_id);
         }
       }
