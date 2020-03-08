@@ -1,0 +1,16 @@
+plugin_register functions/group_filter
+table_create docs TABLE_HASH_KEY ShortText
+column_create docs num COLUMN_SCALAR Int64
+load --table docs
+[
+{"_key": "JP2001213456", "num": "2020"},
+{"_key": "JP2001213457", "num": "2012"},
+{"_key": "JP2001213458", "num": "2016"}
+]
+
+table_create num TABLE_HASH_KEY Int64
+column_create num num COLUMN_INDEX docs num
+
+select docs \
+  --filter '_id > 0 && max_filter("num", 5)' \
+  --output_columns '_id,_score,_key,num' --command_version 2

@@ -345,6 +345,14 @@ select Patents   --filter 'all_records()' \
 ]
 ```
 
+
+### ``max_filter("column_name", diff_number)``
+
+columnの最大値から-diff_numberのみのレコードで絞り込むセレクタ関数。
+
+* column_name: カラム文字列  
+* diff_number: 差分数値(日付の場合、日)
+
 ## Install
 
 Install libgroonga-dev.

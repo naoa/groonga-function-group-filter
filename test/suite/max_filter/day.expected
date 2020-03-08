@@ -1,0 +1,56 @@
+plugin_register functions/group_filter
+[[0,0.0,0.0],true]
+table_create docs TABLE_HASH_KEY ShortText
+[[0,0.0,0.0],true]
+column_create docs date COLUMN_SCALAR Time
+[[0,0.0,0.0],true]
+load --table docs
+[
+{"_key": "JP2001213456", "date": "2019-01-01 00:00:00"},
+{"_key": "JP2001213457", "date": "2019-03-01 00:00:00"},
+{"_key": "JP2001213458", "date": "2019-03-03 00:00:00"}
+]
+[[0,0.0,0.0],3]
+table_create dates TABLE_HASH_KEY Time
+[[0,0.0,0.0],true]
+column_create dates dates COLUMN_INDEX docs date
+[[0,0.0,0.0],true]
+select docs   --filter '_id > 1 && max_filter("date", 1)'   --output_columns '_id,_score,_key,date' --command_version 2
+[
+  [
+    0,
+    0.0,
+    0.0
+  ],
+  [
+    [
+      [
+        1
+      ],
+      [
+        [
+          "_id",
+          "UInt32"
+        ],
+        [
+          "_score",
+          "Float"
+        ],
+        [
+          "_key",
+          "ShortText"
+        ],
+        [
+          "date",
+          "Time"
+        ]
+      ],
+      [
+        3,
+        1.0,
+        "JP2001213458",
+        1551571200.0
+      ]
+    ]
+  ]
+]

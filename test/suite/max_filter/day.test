@@ -1,0 +1,16 @@
+plugin_register functions/group_filter
+table_create docs TABLE_HASH_KEY ShortText
+column_create docs date COLUMN_SCALAR Time
+load --table docs
+[
+{"_key": "JP2001213456", "date": "2019-01-01 00:00:00"},
+{"_key": "JP2001213457", "date": "2019-03-01 00:00:00"},
+{"_key": "JP2001213458", "date": "2019-03-03 00:00:00"}
+]
+
+table_create dates TABLE_HASH_KEY Time
+column_create dates dates COLUMN_INDEX docs date
+
+select docs \
+  --filter '_id > 1 && max_filter("date", 1)' \
+  --output_columns '_id,_score,_key,date' --command_version 2

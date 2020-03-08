@@ -340,11 +340,11 @@ group_counter_load(grn_ctx *ctx, group_counter *g, const char *expr_str, unsigne
       if (expression) {
         GRN_RECORD_SET(ctx, expr_record, id);
         value = grn_expr_exec(ctx, expression, 0);
-        record_id = grn_table_add(ctx,g->count_table, 
+        record_id = grn_table_add(ctx,g->count_table,
                                   GRN_BULK_HEAD(value),
                                   GRN_BULK_VSIZE(value), &added);
       } else {
-        record_id = grn_table_add(ctx,g->count_table, 
+        record_id = grn_table_add(ctx,g->count_table,
                                   GRN_BULK_HEAD(&record),
                                   GRN_BULK_VSIZE(&record), &added);
       }
@@ -468,7 +468,7 @@ group_counter_sort_and_slice(grn_ctx *ctx, group_counter *g, unsigned int top_n)
           GRN_OBJ_FIN(ctx, &record);
         }
       }
-exit : 
+exit :
       grn_obj_unlink(ctx, sorted);
     }
     grn_table_sort_key_close(ctx, sort_keys, n_sort_keys);
@@ -655,7 +655,7 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
                       column_name);
     }
   }
- 
+
   temp_group_column = grn_column_create(ctx, res,
                                         GRN_TEXT_VALUE(&temp_group_column_name),
                                         GRN_TEXT_LEN(&temp_group_column_name),
@@ -938,7 +938,7 @@ selector_group_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_
          }
          group_counter_fin(ctx, &group_counter);
       }
-    } 
+    }
 
     if (result.table) {
       grn_obj_unlink(ctx, result.table);
@@ -949,7 +949,7 @@ exit :
   if (grn_obj_is_accessor(ctx, target_column)) {
     grn_obj_unlink(ctx, target_column);
   }
-  
+
   return rc;
 }
 
@@ -1216,6 +1216,215 @@ exit :
   return value;
 }
 
+static void
+get_raw_value(GNUC_UNUSED grn_ctx *ctx, grn_id range_id, const void *buf, int64_t *int_value, int64_t *float_value)
+{
+  switch (range_id) {
+    case GRN_DB_UINT8 :
+      *int_value = (int64_t)(*(uint8_t *)(buf));
+      break;
+    case GRN_DB_UINT16 :
+      *int_value = (int64_t)(*(uint16_t *)(buf));
+      break;
+    case GRN_DB_UINT32 :
+      *int_value = (int64_t)(*(uint32_t *)(buf));
+      break;
+    case GRN_DB_UINT64 :
+      *int_value = (int64_t)(*(uint64_t *)(buf));
+      break;
+    case GRN_DB_INT8 :
+      *int_value = (int64_t)(*(int8_t *)(buf));
+      break;
+    case GRN_DB_INT16 :
+      *int_value = (int64_t)(*(int16_t *)(buf));
+      break;
+    case GRN_DB_INT32 :
+      *int_value = (int64_t)(*(int32_t *)(buf));
+      break;
+    case GRN_DB_INT64 :
+      *int_value = (*(int64_t *)(buf));
+      break;
+    case GRN_DB_TIME :
+      *int_value = (*(int64_t *)(buf));
+      break;
+    case GRN_DB_FLOAT32 :
+      *float_value = (double)(*(float *)(buf));
+      break;
+    case GRN_DB_FLOAT :
+      *float_value = (*(double *)(buf));
+      break;
+    default :
+      break;
+  }
+}
+
+static void
+get_bulk_value(GNUC_UNUSED grn_ctx *ctx, grn_id range_id, grn_obj *buf, int64_t *int_value, int64_t *float_value)
+{
+  switch (range_id) {
+    case GRN_DB_UINT8 :
+      *int_value = (int64_t)GRN_UINT8_VALUE(buf);
+      break;
+    case GRN_DB_UINT16 :
+      *int_value = (int64_t)GRN_UINT16_VALUE(buf);
+      break;
+    case GRN_DB_UINT32 :
+      *int_value = (int64_t)GRN_UINT32_VALUE(buf);
+      break;
+    case GRN_DB_UINT64 :
+      *int_value = (int64_t)GRN_UINT64_VALUE(buf);
+      break;
+    case GRN_DB_INT8 :
+      *int_value = (int64_t)GRN_INT8_VALUE(buf);
+      break;
+    case GRN_DB_INT16 :
+      *int_value = (int64_t)GRN_INT16_VALUE(buf);
+      break;
+    case GRN_DB_INT32 :
+      *int_value = (int64_t)GRN_INT32_VALUE(buf);
+      break;
+    case GRN_DB_INT64 :
+      *int_value = GRN_INT64_VALUE(buf);
+      break;
+    case GRN_DB_TIME :
+      *int_value = GRN_TIME_VALUE(buf);
+      break;
+    case GRN_DB_FLOAT32 :
+      *float_value = (double)GRN_FLOAT32_VALUE(buf);
+      break;
+    case GRN_DB_FLOAT :
+      *float_value = GRN_FLOAT_VALUE(buf);
+      break;
+    default :
+      break;
+  }
+}
+
+static grn_rc
+selector_max_filter(grn_ctx *ctx, GNUC_UNUSED grn_obj *table, GNUC_UNUSED grn_obj *index,
+                    GNUC_UNUSED int nargs, grn_obj **args,
+                    grn_obj *res, GNUC_UNUSED grn_operator op)
+{
+  grn_obj *column;
+  grn_rc rc = GRN_SUCCESS;
+  grn_obj buf;
+  grn_obj *range;
+  grn_id range_id;
+  int64_t int_max = 0;
+  double float_max = 0.0;
+  int64_t diff = 0;
+  grn_bool is_vector = GRN_FALSE;
+
+  if (nargs < 3) {
+    GRN_PLUGIN_ERROR(ctx, GRN_INVALID_ARGUMENT,
+                     "max_filter(): wrong number of arguments (%d for 2..3)",
+                     nargs - 1);
+    return GRN_INVALID_ARGUMENT;
+  }
+
+  column = grn_obj_column(ctx, res,
+                          GRN_TEXT_VALUE(args[1]),
+                          GRN_TEXT_LEN(args[1]));
+  range_id = grn_obj_get_range(ctx, column);
+  range = grn_ctx_at(ctx, range_id);
+  diff = GRN_INT64_VALUE(args[2]);
+  if (grn_obj_is_table(ctx, range)) {
+    range_id = range->header.domain;
+  }
+
+  {
+    grn_obj *c = grn_obj_column(ctx, table, GRN_TEXT_VALUE(args[1]), GRN_TEXT_LEN(args[1]));
+
+    if (grn_obj_is_vector_column(ctx, c)) {
+      GRN_OBJ_INIT(&buf, GRN_VECTOR, 0, range_id);
+      is_vector = GRN_TRUE;
+    } else {
+      GRN_OBJ_INIT(&buf, 0, 0, range_id);
+    }
+  }
+
+  GRN_HASH_EACH_BEGIN(ctx, (grn_hash *)res, cursor, id) {
+    int64_t int_value = 0;
+    int64_t float_value = 0.0;
+    GRN_BULK_REWIND(&buf);
+    grn_obj_get_value(ctx, column, id, &buf);
+    if (is_vector) {
+      for (unsigned int i = 0; i < grn_vector_size(ctx, &buf); i++) {
+        if (grn_obj_is_table(ctx, range)) {
+          grn_id range_rid = GRN_RECORD_VALUE_AT(&buf, i);
+          char key_name[GRN_TABLE_MAX_KEY_SIZE];
+          grn_table_get_key(ctx, range, range_rid, key_name, GRN_TABLE_MAX_KEY_SIZE);
+          get_raw_value(ctx, range_id, key_name, &int_value, &float_value);
+        } else {
+          const char *content;
+          grn_vector_get_element(ctx, &buf, i,
+                                 &content, NULL, &range_id);
+          get_raw_value(ctx, range_id, content, &int_value, &float_value);
+        }
+        if (int_value > 0 && int_value > int_max) {
+          int_max = int_value;
+        } else if (float_value > 0.0 && float_value > float_max) {
+          float_max = float_value;
+        }
+      }
+    } else {
+      get_bulk_value(ctx, range_id, &buf, &int_value, &float_value);
+      if (int_value > 0 && int_value > int_max) {
+        int_max = int_value;
+      } else if (float_value > 0.0 && float_value > float_max) {
+        float_max = float_value;
+      }
+    }
+  } GRN_HASH_EACH_END(ctx, cursor);
+  if (range_id == GRN_DB_TIME) {
+    diff = diff * 86400000000;
+  }
+
+  GRN_HASH_EACH_BEGIN(ctx, (grn_hash *)res, cursor, id) {
+    int64_t int_value = 0;
+    int64_t float_value = 0.0;
+    GRN_BULK_REWIND(&buf);
+    grn_obj_get_value(ctx, column, id, &buf);
+
+    if (is_vector) {
+      for (unsigned int i = 0; i < grn_vector_size(ctx, &buf); i++) {
+        if (grn_obj_is_table(ctx, range)) {
+          grn_id range_rid = GRN_RECORD_VALUE_AT(&buf, i);
+          char key_name[GRN_TABLE_MAX_KEY_SIZE];
+          grn_table_get_key(ctx, range, range_rid, key_name, GRN_TABLE_MAX_KEY_SIZE);
+          get_raw_value(ctx, range_id, key_name, &int_value, &float_value);
+        } else {
+          const char *content;
+          grn_vector_get_element(ctx, &buf, i,
+                                 &content, NULL, &range_id);
+          get_raw_value(ctx, range_id, content, &int_value, &float_value);
+        }
+        if (int_value < (int_max - diff)) {
+          grn_hash_cursor_delete(ctx, cursor, NULL);
+          break;
+        } else if (float_value < (float_max - (double)diff)) {
+          grn_hash_cursor_delete(ctx, cursor, NULL);
+          break;
+        }
+
+      }
+    } else {
+      get_bulk_value(ctx, range_id, &buf, &int_value, &float_value);
+      if (int_value < (int_max - diff)) {
+        grn_hash_cursor_delete(ctx, cursor, NULL);
+      } else if (float_value < (float_max - (double)diff)) {
+        grn_hash_cursor_delete(ctx, cursor, NULL);
+      }
+    }
+  } GRN_HASH_EACH_END(ctx, cursor);
+
+  GRN_OBJ_FIN(ctx, &buf);
+  grn_obj_close(ctx, column);
+
+  return rc;
+}
+
+
 grn_rc
 GRN_PLUGIN_INIT(GNUC_UNUSED grn_ctx *ctx)
 {
@@ -1246,6 +1455,15 @@ GRN_PLUGIN_REGISTER(grn_ctx *ctx)
   grn_proc_create(ctx, "is_asc_pair", -1, GRN_PROC_FUNCTION,
                   func_is_asc_pair,
                   NULL, NULL, 0, NULL);
+
+  {
+    grn_obj *selector_proc;
+
+    selector_proc = grn_proc_create(ctx, "max_filter", -1, GRN_PROC_FUNCTION,
+                                    NULL, NULL, NULL, 0, NULL);
+    grn_proc_set_selector(ctx, selector_proc, selector_max_filter);
+    grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_EQUAL);
+  }
 
   return ctx->rc;
 }
