@@ -70,15 +70,14 @@ select docs   --filter '_id >= 1 && group_filter(applicants, 2) && group_filter(
         ]
       ],
       [
-        4,
-        4,
-        "JP2001213459",
+        2,
+        3,
+        "JP2001213457",
         [
-          "パナソニック",
-          "三洋"
+          "パナソニック"
         ],
         [
-          "G06F"
+          "G04A"
         ]
       ]
     ]

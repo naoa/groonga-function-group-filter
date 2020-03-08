@@ -87,15 +87,14 @@ select docs   --filter 'group_filter(applicants, 2)'   --output_columns _id,_sco
         ]
       ],
       [
+        3,
         1,
-        1,
-        "JP2001213456",
+        "JP2001213458",
         [
-          "三洋",
-          "三洋オプテックデザイン"
+          "ソニー"
         ],
         [
-          "三洋"
+          "ソニー"
         ]
       ]
     ]
