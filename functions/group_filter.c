@@ -1440,7 +1440,7 @@ GRN_PLUGIN_REGISTER(grn_ctx *ctx)
     selector_proc = grn_proc_create(ctx, "group_filter", -1, GRN_PROC_FUNCTION,
                                     NULL, NULL, NULL, 0, NULL);
     grn_proc_set_selector(ctx, selector_proc, selector_group_filter);
-    grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_EQUAL);
+    grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_NOP);
   }
 
   {
@@ -1449,7 +1449,7 @@ GRN_PLUGIN_REGISTER(grn_ctx *ctx)
     selector_proc = grn_proc_create(ctx, "values_filter", -1, GRN_PROC_FUNCTION,
                                     NULL, NULL, NULL, 0, NULL);
     grn_proc_set_selector(ctx, selector_proc, selector_values_filter);
-    grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_EQUAL);
+    grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_NOP);
   }
 
   grn_proc_create(ctx, "is_asc_pair", -1, GRN_PROC_FUNCTION,
@@ -1462,7 +1462,7 @@ GRN_PLUGIN_REGISTER(grn_ctx *ctx)
     selector_proc = grn_proc_create(ctx, "max_filter", -1, GRN_PROC_FUNCTION,
                                     NULL, NULL, NULL, 0, NULL);
     grn_proc_set_selector(ctx, selector_proc, selector_max_filter);
-    grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_EQUAL);
+    grn_proc_set_selector_operator(ctx, selector_proc, GRN_OP_NOP);
   }
 
   return ctx->rc;
