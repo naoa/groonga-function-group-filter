@@ -78,26 +78,6 @@ select docs   --filter '_id >= 1 && group_filter("applicants.prefecture", 2) && 
         ]
       ],
       [
-        1,
-        4,
-        "JP2001213456",
-        [
-          "三洋",
-          "三洋オプテックデザイン"
-        ],
-        [
-          "岐阜"
-        ],
-        [
-          "G06F",
-          "G04A"
-        ],
-        [
-          "G06F",
-          "G04A"
-        ]
-      ],
-      [
         2,
         3,
         "JP2001213457",
@@ -112,6 +92,24 @@ select docs   --filter '_id >= 1 && group_filter("applicants.prefecture", 2) && 
         ],
         [
           "G04A"
+        ]
+      ],
+      [
+        3,
+        3,
+        "JP2001213458",
+        [
+          "ソニー"
+        ],
+        [
+          "東京"
+        ],
+        [
+          "G06F",
+          "G04B"
+        ],
+        [
+          "G06F"
         ]
       ],
       [
@@ -136,7 +134,7 @@ select docs   --filter '_id >= 1 && group_filter("applicants.prefecture", 2) && 
     {
       "applicants_ipcs": [
         [
-          4
+          3
         ],
         [
           [
@@ -163,13 +161,8 @@ select docs   --filter '_id >= 1 && group_filter("applicants.prefecture", 2) && 
           1
         ],
         [
-          "岐阜",
+          "東京",
           "G06F",
-          1
-        ],
-        [
-          "岐阜",
-          "G04A",
           1
         ]
       ]

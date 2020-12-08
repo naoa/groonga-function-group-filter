@@ -41,7 +41,7 @@ select Memos   --filter 'group_filter(tags, 2)'   --output_columns _key,_score,t
   [
     [
       [
-        3
+        2
       ],
       [
         [
@@ -62,16 +62,6 @@ select Memos   --filter 'group_filter(tags, 2)'   --output_columns _key,_score,t
         ]
       ],
       [
-        "Ruby is an object oriented script language",
-        121,
-        {
-          "ruby": 120
-        },
-        {
-          "ruby": 120
-        }
-      ],
-      [
         "Groonga is fast",
         101,
         {
@@ -83,12 +73,13 @@ select Memos   --filter 'group_filter(tags, 2)'   --output_columns _key,_score,t
       ],
       [
         "Mroonga is also fast",
-        11,
+        112,
         {
           "mroonga": 100,
           "groonga": 10
         },
         {
+          "mroonga": 100,
           "groonga": 10
         }
       ]
@@ -113,13 +104,13 @@ select Memos   --filter 'group_filter(tags, 2)'   --output_columns _key,_score,t
           ]
         ],
         [
-          "ruby",
-          1,
-          120.0
-        ],
-        [
           "groonga",
           2,
+          210.0
+        ],
+        [
+          "mroonga",
+          1,
           110.0
         ]
       ]

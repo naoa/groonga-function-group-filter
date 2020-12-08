@@ -110,7 +110,7 @@ select Memos   --filter 'values_filter(tags, "mroonga ruby")'   --output_columns
         [
           "mroonga",
           1,
-          100.0
+          110.0
         ]
       ]
     }
