@@ -565,29 +565,15 @@ group_counter_select_with_top_n_group_records(grn_ctx *ctx, group_counter *g,
                                     g->top_n_table, g->group_result->header.domain, res, op);
 }
 
-static inline grn_id
-table_get_max_id(grn_ctx *ctx, grn_obj *table)
-{
-  grn_id max_id = GRN_ID_NIL;
-  grn_table_cursor *cur;
-  if ((cur = grn_table_cursor_open(ctx, table, NULL, 0, NULL, 0, 0, 1,
-                                   GRN_CURSOR_BY_ID|GRN_CURSOR_DESCENDING))) {
-    max_id = grn_table_cursor_next(ctx, cur);
-    grn_table_cursor_close(ctx, cur);
-  }
-  return max_id;
-}
-
 static inline void
-add_uniq(grn_ctx *ctx, grn_bool *id_dic, grn_obj *buf, grn_id id, unsigned int weight)
+add_uniq(grn_ctx *ctx, grn_hash *id_dic, grn_obj *buf, grn_id group_id, grn_id id, unsigned int weight)
 {
-  if (!id_dic) {
-    grn_uvector_add_element(ctx, buf, id, weight);
-    return;
-  }
-  if (!id_dic[id-1]) {
-    id_dic[id-1] = GRN_TRUE;
-    grn_uvector_add_element(ctx, buf, id, weight);
+  grn_id id_pair[2];
+  id_pair[0] = id;
+  id_pair[1] = group_id;
+  if (!grn_hash_get(ctx, id_dic, &id_pair[0], sizeof(grn_id) * 2, NULL)) {
+    grn_uvector_add_element(ctx, buf, group_id, weight);
+    grn_hash_add(ctx, id_dic, &id_pair[0], sizeof(grn_id) * 2, NULL, NULL);
   }
 }
 
@@ -671,12 +657,9 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
     goto exit;
   }
 
-  grn_id max_id = GRN_ID_NIL;
-
   if (grn_obj_is_table(ctx, range)) {
     GRN_RECORD_INIT(&buf, GRN_OBJ_VECTOR, range_id);
     GRN_RECORD_INIT(&write_buf, GRN_OBJ_VECTOR, range_id);
-    max_id = table_get_max_id(ctx, range);
   } else {
     GRN_OBJ_INIT(&write_buf, GRN_VECTOR, 0, range_id);
     if (grn_obj_is_vector_column(ctx, column)) {
@@ -693,12 +676,12 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
   grn_obj id_buf;
   GRN_RECORD_INIT(&id_buf, 0, range_id);
 
+  grn_hash *id_dic = NULL;
+  id_dic = grn_hash_create(ctx, NULL, sizeof(grn_id) * 2, 0,
+                           GRN_OBJ_TABLE_HASH_KEY|GRN_HASH_TINY);
+
   GRN_HASH_EACH_BEGIN(ctx, (grn_hash *)res, cursor, id) {
     unsigned int i;
-    grn_bool *id_dic = NULL;
-    if (max_id > 0) {
-      id_dic = GRN_PLUGIN_CALLOC(ctx, sizeof(grn_bool) * max_id);
-    }
 
     GRN_BULK_REWIND(&buf);
     GRN_BULK_REWIND(&write_buf);
@@ -717,15 +700,15 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
             if (record_id) {
               grn_obj_get_value(ctx, to_synonym_column, record_id, &id_buf);
               if (GRN_RECORD_VALUE(&id_buf) != GRN_ID_NIL) {
-                add_uniq(ctx, id_dic, &write_buf, GRN_RECORD_VALUE(&id_buf), 0);
+                add_uniq(ctx, id_dic, &write_buf, GRN_RECORD_VALUE(&id_buf), id, 0);
               } else {
-                add_uniq(ctx, id_dic, &write_buf, group_id, 0);
+                add_uniq(ctx, id_dic, &write_buf, group_id, id, 0);
               }
             } else {
-              add_uniq(ctx, id_dic, &write_buf, group_id, 0);
+              add_uniq(ctx, id_dic, &write_buf, group_id, id, 0);
             }
           } else {
-            add_uniq(ctx, id_dic, &write_buf, group_id, 0);
+            add_uniq(ctx, id_dic, &write_buf, group_id, id, 0);
           }
         }
 
@@ -744,15 +727,15 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
               if (record_id) {
                 grn_obj_get_value(ctx, to_synonym_column, record_id, &id_buf);
                 if (GRN_RECORD_VALUE(&id_buf) != GRN_ID_NIL) {
-                  add_uniq(ctx, id_dic, &write_buf, GRN_RECORD_VALUE(&id_buf), weight);
+                  add_uniq(ctx, id_dic, &write_buf, GRN_RECORD_VALUE(&id_buf), id, weight);
                 } else {
-                  add_uniq(ctx, id_dic, &write_buf, group_id, weight);
+                  add_uniq(ctx, id_dic, &write_buf, group_id, id, weight);
                 }
               } else {
-                add_uniq(ctx, id_dic, &write_buf, group_id, weight);
+                add_uniq(ctx, id_dic, &write_buf, group_id, id, weight);
               }
             } else {
-              add_uniq(ctx, id_dic, &write_buf, group_id, weight);
+              add_uniq(ctx, id_dic, &write_buf, group_id, id, weight);
             }
           }
 
@@ -782,11 +765,11 @@ apply_temp_column(grn_ctx *ctx, grn_obj *column, grn_obj *range,
     if (grn_vector_size(ctx, &write_buf) > 0) {
       grn_obj_set_value(ctx, temp_group_column, id, &write_buf, GRN_OBJ_SET);
     }
-    if (max_id > 0) {
-      GRN_PLUGIN_FREE(ctx, id_dic);
-      id_dic = NULL;
-    }
   } GRN_HASH_EACH_END(ctx, cursor);
+
+  if (id_dic) {
+    grn_hash_close(ctx, id_dic);
+  }
 
   GRN_OBJ_FIN(ctx, &id_buf);
   GRN_OBJ_FIN(ctx, &buf);
